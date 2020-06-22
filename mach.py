@@ -1,6 +1,9 @@
 import sys
 import bluetooth
 import argparse
+import pickle
+from skullpkt import Skullpkt
+from cmd import CMD
 
 class mach:
     def __init__(self, bdaddr:str):
@@ -11,12 +14,22 @@ class mach:
         self.mainloop()
 
     def mainloop(self):
-        print("Connected. Type something...")
+        print("Connected. Give a command in the format -> <cmd>::<amount>")
         while True:
             data = input()
             if not data:
                 break
-            self.sock.send(data.encode())
+
+            cmds = data.split(" ")
+            pkt = Skullpkt()
+            print(cmds)
+            for indiv in cmds:
+                indiv = indiv.split("::")
+                print(indiv)
+                c = CMD(indiv[0], int(indiv[1]))
+                pkt.add_cmd(c)
+            data_string = pickle.dumps(pkt)
+            self.sock.send(data_string)
 
     def connect(self):
         service_matches = bluetooth.find_service(address=self.bdaddr)
