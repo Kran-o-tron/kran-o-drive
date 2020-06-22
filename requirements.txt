@@ -1,0 +1,7 @@
+sudo apt install python-pip python-bluez libbluetooth-dev libboost-python-dev libboost-thread-dev libglib2.0-dev bluez bluez-hcidump
+adduser lp $(whoami)
+sudo python3 -m pip install pybluez scapy
+
+
+sudo hciconfig hci0 piscan
+# sudo python3 rasp.py
