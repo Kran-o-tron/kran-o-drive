@@ -1,5 +1,8 @@
 import bluetooth
 import logging
+import pickle
+from skullpkt import Skullpkt
+from cmd import CMD
 
 class rasp:
     """
@@ -30,10 +33,11 @@ class rasp:
         
     def mainloop(self):
         while True:
-            data = self.client_sock.recv(1024)
+            data = self.client_sock.recv(4096)
             if not data:
                 break
-            logging.info("DATA :: %s" % data.decode())        
+            pkt = pickle.loads(data)
+            logging.info("DATA :: %s" % pkt)        
 
             
         
