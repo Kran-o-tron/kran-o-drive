@@ -14,22 +14,35 @@ class mach:
         self.mainloop()
 
     def mainloop(self):
+        print("==========================================================")
         print("Connected. Give a command in the format -> <cmd>::<amount>")
+        print("Type ? or help for a list of commands.")
+        print("==========================================================")
         while True:
-            data = input()
+            data = input(">")
             if not data:
                 break
-
+            
             cmds = data.split(" ")
             pkt = Skullpkt()
-            print(cmds)
             for indiv in cmds:
-                indiv = indiv.split("::")
-                print(indiv)
-                c = CMD(indiv[0], int(indiv[1]))
-                pkt.add_cmd(c)
-            data_string = pickle.dumps(pkt)
-            self.sock.send(data_string)
+                if indiv != "?":
+                    indiv = indiv.split("::")
+                    if indiv[0] in CMD.list_cmd():
+                        try:
+                            c = CMD(indiv[0], int(indiv[1]))
+                            pkt.add_cmd(c)
+                        except ValueError as e:
+                            print("     <" + indiv[0] + ">" + "BAD COMMAND")
+                    else:
+                        print("     <" + indiv[0] + ">" + "BAD COMMAND")
+                else:
+                    print("Valid commands...")
+                    print(CMD.list_cmd())
+                    
+            if len(pkt.get_cmd()) != 0: # only send if there are valid cmds
+                data_string = pickle.dumps(pkt)
+                self.sock.send(data_string)
 
     def connect(self):
         service_matches = bluetooth.find_service(address=self.bdaddr)

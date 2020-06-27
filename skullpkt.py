@@ -11,6 +11,9 @@ class Skullpkt:
     
     def add_cmd(self, cmd:CMD):
         self.cmds.append(cmd)
+    
+    def get_cmd(self):
+        return self.cmds
 
 if __name__ == "__main__":
     sk = Skullpkt()

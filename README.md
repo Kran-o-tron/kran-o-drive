@@ -1,6 +1,8 @@
 # skullpos
 Craniofacial positioning device w/ bluetooth between a RPI3 and UNIX machine
 
+![demo](./support/demo.gif)
+
 ## Quick Start
 Uses Python 3 and the Bluetooth Stack to communicate with a Raspberry Pi.
 

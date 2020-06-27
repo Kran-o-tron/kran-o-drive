@@ -1,3 +1,5 @@
+cmds = ['pitch', 'yaw', 'height']
+
 class CMD:
     """
         comm: str: pitch, yaw, height, None
@@ -6,7 +8,8 @@ class CMD:
     def __init__(self, comm:str, amount:int):
         self.cmd = None
         self.amount = None
-        if comm not in ['pitch', 'yaw', 'height']:
+        self.list = cmds
+        if comm not in self.list:
             print('bad cmd')
             self.cmd = ''
             self.amount = 0
@@ -15,3 +18,7 @@ class CMD:
 
     def __repr__(self):
         return f"{self.cmd}::{self.amount}"
+    
+    @staticmethod
+    def list_cmd():
+        return cmds
