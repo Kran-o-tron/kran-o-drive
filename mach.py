@@ -1,15 +1,20 @@
 import sys
+import json
 import bluetooth
 import argparse
 import pickle
 from skullpkt import Skullpkt
 from cmd import CMD
 
+
 class mach:
     def __init__(self, bdaddr:str):
         self.bdaddr = bdaddr
         self.sock = None
+        self.save_wait = False  # indicate we need to recv from the sock
+        self.profiles = None  # saved profiles
 
+        self.load()
         self.connect()
         self.mainloop()
 
@@ -18,8 +23,10 @@ class mach:
         print("Connected. Give a command in the format -> <cmd>::<amount>")
         print("Type ? or help for a list of commands.")
         print("==========================================================")
+
         while True:
             data = input(">")
+            profile_name = None
             if not data:
                 break
             
@@ -30,32 +37,64 @@ class mach:
                     # handle without value
                     c = CMD(indiv)
                     pkt.add_cmd(c)
-                elif indiv in ['save']: #todo regex for :: before name saved under
-                    c = CMD(indiv)
+                elif indiv.startswith("save::"):
+                    indiv = indiv.split("::")
+                    c = CMD(indiv[0])
                     pkt.add_cmd(c)
-                    
-                    # wait for save packet response 
-                    
-                    # save to JSON under given name
-                    
+                    self.save_wait = True
+                    profile_name = indiv[1]
+                    if indiv[1] in self.profiles.keys():
+                        print("=========================")
+                        string = input(f'Profile already present with values {self.profiles[indiv[1]]}\nDo you want to overwrite? [Y/n] ')
+                        print("=========================")
+                        if string == "Y":
+                            print("OVERWRITING")
+                            self.profiles[indiv[1]] = dict()
+                        else:
+                            # cancel the save action
+                            print("OVERWRITE CANCELLED")
+                            self.save_wait = False
+
+                elif indiv == "list":
+                    for entry in self.profiles.keys():
+                        print(f'{entry} -> {self.profiles[entry]}')
                 elif indiv == "?":
                     print("Valid commands...")
                     print(CMD.permitted_cmds())
                 else:
-                    indiv = indiv.split("::")
-                    if indiv[0] in CMD.permitted_cmds():
+                    action = indiv.split("::")
+                    # print(action)
+                    if action[0] in CMD.permitted_cmds():
                         try:
-                            c = CMD(indiv[0], int(indiv[1]))
+                            c = CMD(action[0], int(action[1]))
                             pkt.add_cmd(c)
+                            # print(pkt.get_pkt_cmds())
                         except ValueError as e:
-                            print("     <" + indiv[0] + ">" + "BAD COMMAND")
+                            print("     <" + action[0] + ">" + "BAD COMMAND")
                     else:
-                        print("     <" + indiv[0] + ">" + "BAD COMMAND")
-                    
-                    
-            if len(pkt.get_pkt_cmds()) != 0: # only send if there are valid cmds
+                        print("     <" + action[0] + ">" + "BAD COMMAND")
+
+            if len(pkt.get_pkt_cmds()) != 0:  # only send if there are valid cmds
                 data_string = pickle.dumps(pkt)
-                self.sock.send(data_string) # send along the socket to the rpi
+                self.sock.send(data_string)  # send along the socket to the rpi
+
+            if self.save_wait:
+                self.save_wait = False
+                data = self.sock.recv(4096)
+                data = pickle.loads(data)
+                print(data)
+                self.profiles[profile_name] = data
+                self.save()
+
+    def save(self):
+        # dump to disk
+        with open('profiles.json', 'w') as fp:
+            json.dump(self.profiles, fp)
+
+    def load(self):
+        with open('profiles.json') as fp:
+            self.profiles = json.loads(fp.read())
+
 
     def connect(self):
         service_matches = bluetooth.find_service(address=self.bdaddr)
