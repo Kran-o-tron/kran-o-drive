@@ -26,9 +26,24 @@ class mach:
             cmds = data.split(" ")
             pkt = Skullpkt()
             for indiv in cmds:
-                if indiv != "?":
+                if indiv in ['reset', 'close']:
+                    # handle without value
+                    c = CMD(indiv)
+                    pkt.add_cmd(c)
+                elif indiv in ['save']: #todo regex for :: before name saved under
+                    c = CMD(indiv)
+                    pkt.add_cmd(c)
+                    
+                    # wait for save packet response 
+                    
+                    # save to JSON under given name
+                    
+                elif indiv == "?":
+                    print("Valid commands...")
+                    print(CMD.permitted_cmds())
+                else:
                     indiv = indiv.split("::")
-                    if indiv[0] in CMD.list_cmd():
+                    if indiv[0] in CMD.permitted_cmds():
                         try:
                             c = CMD(indiv[0], int(indiv[1]))
                             pkt.add_cmd(c)
@@ -36,13 +51,11 @@ class mach:
                             print("     <" + indiv[0] + ">" + "BAD COMMAND")
                     else:
                         print("     <" + indiv[0] + ">" + "BAD COMMAND")
-                else:
-                    print("Valid commands...")
-                    print(CMD.list_cmd())
                     
-            if len(pkt.get_cmd()) != 0: # only send if there are valid cmds
+                    
+            if len(pkt.get_pkt_cmds()) != 0: # only send if there are valid cmds
                 data_string = pickle.dumps(pkt)
-                self.sock.send(data_string)
+                self.sock.send(data_string) # send along the socket to the rpi
 
     def connect(self):
         service_matches = bluetooth.find_service(address=self.bdaddr)
