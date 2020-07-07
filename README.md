@@ -12,7 +12,15 @@ Run `./start.sh` on the Raspberry Pi to begin the server process. Note the bluet
 
 Run `python3 mach.py <addr>` to communicate with the Raspberry Pi, where `<addr>` is the bluetooth address given above.
 
-Execute commands of `pitch`, `yaw`, and `height` like so `<cmd>::<amount>` where `amount` is the value to operate the servo by. 
+## Commands
+Use `pitch`, `yaw`, and `height` like so `<cmd>::<amount>` where `amount` is the value to operate the servo by. 
+
+`save::<name>` to save the current position of the device to disk for later use.
+
+`list` to see all current profiles on disk.
+
+## Profile format
+All position profiles are stored in `profiles.json` in the home directory for easy to edit formatting. 
 
 ## Contributors
 `m-ish` - Hamish Bultitude
