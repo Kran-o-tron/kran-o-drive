@@ -3,6 +3,11 @@ import logging
 import pickle
 from skullpkt import Skullpkt
 from cmd import CMD
+import sys
+from socket import error as SocketError
+import errno
+
+
 
 class rasp:
     """
@@ -14,12 +19,20 @@ class rasp:
     """
 
     def __init__(self):
-        self.setup() # start variables and wait for connection
-        self.mainloop() # enter connection loop
-        
+        self.setup()  # start variables and wait for connection
+        self.mainloop()  # enter connection loop
+
     def mainloop(self):
         while True:
-            data = self.client_sock.recv(4096)
+            try:
+                data = self.sock.recv(4096)
+            except SocketError as e:
+                if e.errno != errno.ECONNRESET:
+                    raise  # Not error we are looking for
+                self.sock.close()
+                logging.info("SHUTTING DOWN...")
+                sys.exit(0)
+
             if not data:
                 break
             data = pickle.loads(data)  # cast to skull packet
@@ -39,17 +52,31 @@ class rasp:
                     # create packet of a dictionary to send back
                     data_string = pickle.dumps(self.pos)
                     # send it through the socket
-                    self.client_sock.send(data_string)
+                    self.sock.send(data_string)
                     logging.info("SENT POS INFO")
-                    
+
                 elif cmd.cmd == "reset":
                     # reset all pos, move back to 0
-                    pass
+                    logging.info("RESET POS TO 0,0,0")
+                    self.reset()
+                    pass  # todo move
+
                 elif cmd.cmd == "close":
                     # close the socket nicely, reset to 0
-                    pass
-    
-    def move(self, axis:str, distance:int):
+                    self.reset()
+                    # todo move
+                    self.close()
+
+    def close(self):
+        self.sock.close()
+        sys.exit(0)
+
+    def reset(self):
+        self.pos['height'] = 0
+        self.pos['pitch'] = 0
+        self.pos['yaw'] = 0
+
+    def move(self, axis: str, distance: int):
         # get difference between max and current
         # todo fix this!
         # move that amount
@@ -64,7 +91,7 @@ class rasp:
         self.pos['pitch'] = 0
         self.pos['yaw'] = 0
         # todo reset pos if out of wack
-        
+
         """ bluetooth connection """
         self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         self.server_sock.bind(("", bluetooth.PORT_ANY))
@@ -72,11 +99,12 @@ class rasp:
         bluetooth.advertise_service(self.server_sock, "skullpos", service_id=self.uuid,
                                     service_classes=[self.uuid, bluetooth.SERIAL_PORT_CLASS],
                                     profiles=[bluetooth.SERIAL_PORT_PROFILE])
-        logging.info("LISTENING on RFCOMM :: %s/%d" % (bluetooth.read_local_bdaddr()[0], self.server_sock.getsockname()[1]))
+        logging.info(
+            "LISTENING on RFCOMM :: %s/%d" % (bluetooth.read_local_bdaddr()[0], self.server_sock.getsockname()[1]))
         # wait for a connection!
-        self.client_sock, self.client_info = self.server_sock.accept()
+        self.sock, self.client_info = self.server_sock.accept()
         logging.info("ACCEPTED :: %s" % self.client_info[0])
-        
+
 
 if __name__ == "__main__":
     rasp = rasp()

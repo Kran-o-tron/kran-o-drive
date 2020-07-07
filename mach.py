@@ -5,10 +5,15 @@ import argparse
 import pickle
 from skullpkt import Skullpkt
 from cmd import CMD
+import signal
 
+
+def signal_handler(sig, frame):
+    print(' -> Shutting down...')
+    sys.exit(0)
 
 class mach:
-    def __init__(self, bdaddr:str):
+    def __init__(self, bdaddr: str):
         self.bdaddr = bdaddr
         self.sock = None
         self.save_wait = False  # indicate we need to recv from the sock
@@ -25,11 +30,13 @@ class mach:
         print("==========================================================")
 
         while True:
-            data = input(">")
+            close = False
+
+            data = input("> ")
             profile_name = None
             if not data:
                 break
-            
+
             cmds = data.split(" ")
             pkt = Skullpkt()
             for indiv in cmds:
@@ -37,6 +44,9 @@ class mach:
                     # handle without value
                     c = CMD(indiv)
                     pkt.add_cmd(c)
+                    if indiv == 'close':
+                        close = True
+
                 elif indiv.startswith("save::"):
                     indiv = indiv.split("::")
                     c = CMD(indiv[0])
@@ -45,7 +55,8 @@ class mach:
                     profile_name = indiv[1]
                     if indiv[1] in self.profiles.keys():
                         print("=========================")
-                        string = input(f'Profile already present with values {self.profiles[indiv[1]]}\nDo you want to overwrite? [Y/n] ')
+                        string = input(
+                            f'Profile already present with values {self.profiles[indiv[1]]}\nDo you want to overwrite? [Y/n] ')
                         print("=========================")
                         if string == "Y":
                             print("OVERWRITING")
@@ -70,9 +81,9 @@ class mach:
                             pkt.add_cmd(c)
                             # print(pkt.get_pkt_cmds())
                         except ValueError as e:
-                            print("     <" + action[0] + ">" + "BAD COMMAND")
+                            print("\t<" + action[0] + ">" + "BAD COMMAND")
                     else:
-                        print("     <" + action[0] + ">" + "BAD COMMAND")
+                        print("\t<" + action[0] + ">" + "BAD COMMAND")
 
             if len(pkt.get_pkt_cmds()) != 0:  # only send if there are valid cmds
                 data_string = pickle.dumps(pkt)
@@ -86,28 +97,35 @@ class mach:
                 self.profiles[profile_name] = data
                 self.save()
 
+            if close:
+                self.sock.close()
+                sys.exit(0)
+
     def save(self):
         # dump to disk
         with open('profiles.json', 'w') as fp:
             json.dump(self.profiles, fp)
 
     def load(self):
+        # load from disk
         with open('profiles.json') as fp:
             self.profiles = json.loads(fp.read())
 
-
     def connect(self):
+        # instantiate and connect to bluetooth socket
         service_matches = bluetooth.find_service(address=self.bdaddr)
         first_match = service_matches[0]
         port = first_match["port"]
         name = first_match["name"]
-        host = first_match["host"].decode() 
+        host = first_match["host"].decode()
 
         self.sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         self.sock.connect((host, port))
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='skullpos client')
     parser.add_argument('bluetooth_addr', type=str)
+    signal.signal(signal.SIGINT, signal_handler)
     args = parser.parse_args()
     mach = mach(args.bluetooth_addr)
