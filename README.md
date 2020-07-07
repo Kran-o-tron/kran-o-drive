@@ -19,8 +19,12 @@ Use `pitch`, `yaw`, and `height` like so `<cmd>::<amount>` where `amount` is the
 
 `list` to see all current profiles on disk.
 
+`reset` to reset all positions to their origin.
+
+`close` to politely close the connection. `^C` also works too ;) 
+
 ## Profile format
-All position profiles are stored in `profiles.json` in the home directory for easy to edit formatting. 
+All position profiles are stored in `profiles.json` in the home directory for easy to edit formatting. See the file for formatting examples. 
 
 ## Contributors
 `m-ish` - Hamish Bultitude
