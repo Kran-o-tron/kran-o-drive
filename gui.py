@@ -3,9 +3,9 @@ from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 import tkinter as tk
 import tkinter.ttk as ttk
 
-PORT=55555
-
 # todo add save and load profiles!
+# todo hardcode limits for each axis & prevent send of info.
+
 class SkullguiApp:
     def __init__(self, master=None, mach_port=0, iso=False):
         
@@ -19,7 +19,7 @@ class SkullguiApp:
         
         # build ui
         main = ttk.Frame(master)
-        print(1)
+
         # save window
         saveload = ttk.Frame(main)
         saveload_inner = ttk.Frame(saveload)
@@ -195,15 +195,11 @@ class SkullguiApp:
         main.config(height='200', width='200')
         main.pack(side='top')
         
-        print(3)
-        print(iso)
         # Main widget
         self.mainwindow = main
         
         if not iso:
-            print(1)
             self.mainwindow.mainloop()
-            print(2)
             
     def print(self, string: str):
         self.Commands_Window.config(state=tk.NORMAL)
@@ -230,22 +226,27 @@ class SkullguiApp:
         self.print(msg)
         
         # todo send msg down socket
+        self.send(msg)
+
         
     def list(self):
         self.print("list")
-        # todo list
+        self.send("list")
         
     def save(self):
         filename = self.Save_Entry.get()
         self.print("save", filename)
+        self.send(f"save::{filename}")
+
         
     def load(self):
         filename = self.Load_Entry.get()
         self.print("load", filename)
-        
+        self.send(f"load::{filename}")
+
     def reset(self):
         self.print("reset")
-        # todo reset
+        self.send("reset")
 
     def send(self, cmd: str):
         self.s.sendall(cmd.encode())
@@ -255,7 +256,7 @@ class SkullguiApp:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--port', type=int, help="port for mach.py connection")
+    parser.add_argument('port', type=int, help="port for mach.py connection")
     args = parser.parse_args()
     print(args.port)
     
@@ -264,6 +265,3 @@ if __name__ == '__main__':
     root.resizable(False, False)
     app = SkullguiApp(root, args.port, True)
     app.run()
-
-
-

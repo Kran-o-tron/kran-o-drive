@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import json
 import bluetooth
 import argparse
@@ -11,6 +11,7 @@ from skullpkt import Skullpkt
 from gui import SkullguiApp
 from cmd import CMD
 
+# todo f strings
 
 def signal_handler(sig, frame):
     print(' -> Shutting down...')
@@ -27,15 +28,13 @@ class mach:
             self.s = socket(AF_INET, SOCK_STREAM)
             self.s.bind(('', 0))
             self.s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-            # SkullguiApp(mach_port=self.s.getsockname()[1])
-            gui_thread = threading.Thread(target=SkullguiApp, 
-                                          kwargs=dict(mach_port=self.s.getsockname()[1]))
-            gui_thread.start()
             
             # wait for connection
-            print("waiting...")
+            print("Started in GUI mode, execute the following command to interface with skullpos")
+            print(f"\t > python3 gui.py {self.s.getsockname()[1]}")
             self.s.listen()
-            print("accepting...")
+            
+            print(f"waiting...")
             self.conn, addr = self.s.accept()
 
         self.load()
@@ -43,23 +42,19 @@ class mach:
         self.mainloop(gui)
 
     def mainloop(self, gui):
-        print("==========================================================")
-        print("Connected. Give a command in the format -> <cmd>::<amount>")
-        print("Type ? or help for a list of commands.")
-        print("==========================================================")
+        self.welcome(gui)
 
         while True:
             close = False
 
-            if gui:
+            if not gui:
                 data = input("> ")
             else:
-                # get from gui socket!                        
-                data = self.conn.listen()
+                # get from gui socket!
+                data = self.conn.recv(1024)
                 data = data.decode()
-            
-            print(data)
-            
+                print(f"$ {data}")
+                     
             profile_name = None
             if not data:
                 break
@@ -148,6 +143,15 @@ class mach:
 
         self.sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         self.sock.connect((host, port))
+    
+    def welcome(self, gui):
+        print("==========================================================")
+        if gui:
+            print("Connected. Use the GUI window to send commands")
+        else:
+            print("Connected. Give a command in the format -> <cmd>::<amount>")
+            print("Type ? or help for a list of commands.")
+        print("==========================================================")
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='skullpos client')
