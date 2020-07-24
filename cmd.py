@@ -1,7 +1,7 @@
-cmds = ['pitch', 'yaw', 'height', 'save', 'list', 'reset', 'close']
-
+cmds = ['pitch', 'yaw', 'height', 'roll', 'width' 'save', 'load' 'list', 'reset', 'close']
 
 # todo implement close & reset
+# todo implement load
 
 class CMD:
     """

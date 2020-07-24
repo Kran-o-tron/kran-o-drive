@@ -42,13 +42,15 @@ class rasp:
 
             # handle packet data
             for cmd in pkt.get_pkt_cmds():
-                if cmd.cmd in ['height', 'pitch', 'yaw']:
+                if cmd.cmd in ['height', 'pitch', 'yaw', 'roll', 'width']:
                     logging.info("ATTEMPT MOVE :: %s :: %d" % (cmd.cmd, cmd.amount))
                     self.move(cmd.cmd, cmd.amount)
                 elif cmd.cmd == "save":
                     logging.info("SAVING... :: height %d | pitch %d | yaw %d" % (self.pos['height'],
                                                                                  self.pos['pitch'],
-                                                                                 self.pos['yaw']))
+                                                                                 self.pos['yaw'],
+                                                                                 self.pos['roll'],
+                                                                                 self.pos['width']))
                     # create packet of a dictionary to send back
                     data_string = pickle.dumps(self.pos)
                     # send it through the socket
@@ -57,14 +59,13 @@ class rasp:
 
                 elif cmd.cmd == "reset":
                     # reset all pos, move back to 0
-                    logging.info("RESET POS TO 0,0,0")
+                    logging.info("RESET POS TO ORIGIN")
                     self.reset()
                     pass  # todo move
 
                 elif cmd.cmd == "close":
                     # close the socket nicely, reset to 0
                     self.reset()
-                    # todo move
                     self.close()
 
     def close(self):
@@ -75,6 +76,11 @@ class rasp:
         self.pos['height'] = 0
         self.pos['pitch'] = 0
         self.pos['yaw'] = 0
+        self.pos['roll'] = 0
+        self.pos['width'] = 0
+        # todo move
+
+        
 
     def move(self, axis: str, distance: int):
         # get difference between max and current
@@ -90,6 +96,8 @@ class rasp:
         self.pos['height'] = 0
         self.pos['pitch'] = 0
         self.pos['yaw'] = 0
+        self.pos['roll'] = 0
+        self.pos['width'] = 0
         # todo reset pos if out of wack
 
         """ bluetooth connection """
