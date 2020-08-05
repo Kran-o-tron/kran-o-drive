@@ -19,16 +19,16 @@ sudo apt-get install libbluetooth-dev \
   libglib2.0-dev bluez \
   bluez-hcidump
 
-
 $PIP install --user gattlib \
   pybluez \
-  scapy
+  adafruit-circuitpython-motorkit
+
 
 $PYTHON -c 'import bluetooth' 2&> /dev/null
 res=$?
 if [[ $res = 0 ]]
 then
-  echo SkullPosDude Done. enjoy!
+  echo SkullBot setup done, enjoy!
 else
   echo The install failed, sorry.
 fi

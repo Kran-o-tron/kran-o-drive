@@ -11,8 +11,6 @@ from skullpkt import Skullpkt
 from gui import SkullguiApp
 from cmd import CMD
 
-# todo f strings
-
 def signal_handler(sig, frame):
     print(' -> Shutting down...')
     sys.exit(0)
@@ -62,6 +60,8 @@ class mach:
             cmds = data.split(" ")
             pkt = Skullpkt()
             for indiv in cmds:
+                
+                ## reset & close
                 if indiv in ['reset', 'close']:
                     # handle without value
                     c = CMD(indiv)
@@ -69,6 +69,7 @@ class mach:
                     if indiv == 'close':
                         close = True
 
+                ## save
                 elif indiv.startswith("save::"):
                     indiv = indiv.split("::")
                     c = CMD(indiv[0])
@@ -88,6 +89,7 @@ class mach:
                             print("OVERWRITE CANCELLED")
                             self.save_wait = False
 
+                ## load
                 elif indiv.startswith("load::"):
                     indiv = indiv.split("::")
                     c = CMD(indiv[0])
@@ -99,12 +101,17 @@ class mach:
                     else:
                         print("ERROR: PROFILE DOES NOT EXIST")
                     
+                ## show profiles
                 elif indiv == "list":
                     for entry in self.profiles.keys():
                         print(f'{entry} -> {self.profiles[entry]}')
+                        
+                ## show commands
                 elif indiv == "?":
                     print("Valid commands...")
                     print(CMD.permitted_cmds())
+                
+                ## try and parse movement command
                 else:
                     action = indiv.split("::")
                     # print(action)
@@ -118,11 +125,12 @@ class mach:
                     else:
                         print(f"\t<{action[0]}> BAD COMMAND (DOESN'T EXIST)")
 
-
-            if len(pkt.get_pkt_cmds()) != 0:  # only send if there are valid cmds
+             # only send if there are valid cmds
+            if len(pkt.get_pkt_cmds()) != 0: 
                 data_string = pickle.dumps(pkt)
                 self.sock.send(data_string)  # send along the socket to the rpi
 
+            # if we have issued a save command, wait for the pi to send the pos info back.
             if self.save_wait:
                 self.save_wait = False
                 data = self.sock.recv(4096)
