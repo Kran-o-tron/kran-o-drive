@@ -1,7 +1,4 @@
-cmds = ['pitch', 'yaw', 'height', 'roll', 'width' 'save', 'load' 'list', 'reset', 'close']
-
-# todo implement close & reset
-# todo implement load
+cmds = ['pitch', 'yaw', 'height', 'roll', 'width', 'save', 'load', 'list', 'reset', 'close']
 
 class CMD:
     """
@@ -9,7 +6,7 @@ class CMD:
         amount: int: how much to move
     """
 
-    def __init__(self, comm: str, amount: int = None):
+    def __init__(self, comm: str, amount: int = None, pos: dict = None): 
         self.cmd = None
         self.amount = amount
         if comm not in cmds:
@@ -18,6 +15,7 @@ class CMD:
             self.amount = 0
         self.cmd = comm
         self.amount = amount
+        self.pos = pos
 
     def __repr__(self):
         return f"{self.cmd}::{self.amount}"

@@ -2,4 +2,4 @@
 
 set -e
 sudo hciconfig hci0 piscan
-sudo python3 rasp.py
+sudo python3 rasp.py 

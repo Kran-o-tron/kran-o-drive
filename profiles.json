@@ -1,1 +1,1 @@
-{"1": {"height": 0, "pitch": 3, "yaw": 0}, "2": {"height": 0, "pitch": 4, "yaw": 0}, "carl": {"height": 0, "pitch": 3, "yaw": 0}}
+{"one": {"height": 100, "pitch": 0, "yaw": 0, "roll": 0, "width": 45}, "two": {"height": -100, "pitch": 0, "yaw": 0, "roll": 0, "width": -45}, "three": {"height": 250, "pitch": 0, "yaw": 0, "roll": 0, "width": 45}}

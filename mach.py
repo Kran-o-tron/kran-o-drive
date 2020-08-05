@@ -34,14 +34,14 @@ class mach:
             print(f"\t > python3 gui.py {self.s.getsockname()[1]}")
             self.s.listen()
             
-            print(f"waiting...")
+            print("waiting...")
             self.conn, addr = self.s.accept()
 
         self.load()
-        # self.connect()
+        self.connect()
         self.mainloop(gui)
 
-    def mainloop(self, gui):
+    def mainloop(self, gui): 
         self.welcome(gui)
 
         while True:
@@ -75,7 +75,7 @@ class mach:
                     pkt.add_cmd(c)
                     self.save_wait = True
                     profile_name = indiv[1]
-                    if indiv[1] in self.profiles.keys():
+                    if profile_name in self.profiles.keys():
                         print("=========================")
                         string = input(
                             f'Profile already present with values {self.profiles[indiv[1]]}\nDo you want to overwrite? [Y/n] ')
@@ -88,6 +88,17 @@ class mach:
                             print("OVERWRITE CANCELLED")
                             self.save_wait = False
 
+                elif indiv.startswith("load::"):
+                    indiv = indiv.split("::")
+                    c = CMD(indiv[0])
+                    profile_name = indiv[1]
+                    if profile_name in self.profiles.keys():
+                        print("LOADING PROFILE...")
+                        c.pos = self.profiles[profile_name]
+                        pkt.add_cmd(c)
+                    else:
+                        print("ERROR: PROFILE DOES NOT EXIST")
+                    
                 elif indiv == "list":
                     for entry in self.profiles.keys():
                         print(f'{entry} -> {self.profiles[entry]}')
@@ -103,9 +114,10 @@ class mach:
                             pkt.add_cmd(c)
                             # print(pkt.get_pkt_cmds())
                         except ValueError as e:
-                            print("\t<" + action[0] + ">" + "BAD COMMAND")
+                            print(f"\t<{action[0]}> BAD COMMAND (ERROR)")
                     else:
-                        print("\t<" + action[0] + ">" + "BAD COMMAND")
+                        print(f"\t<{action[0]}> BAD COMMAND (DOESN'T EXIST)")
+
 
             if len(pkt.get_pkt_cmds()) != 0:  # only send if there are valid cmds
                 data_string = pickle.dumps(pkt)
@@ -132,6 +144,7 @@ class mach:
         # load from disk
         with open('profiles.json') as fp:
             self.profiles = json.loads(fp.read())
+                
 
     def connect(self):
         # instantiate and connect to bluetooth socket

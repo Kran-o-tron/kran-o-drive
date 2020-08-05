@@ -3,7 +3,6 @@ from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 import tkinter as tk
 import tkinter.ttk as ttk
 
-# todo add save and load profiles!
 # todo hardcode limits for each axis & prevent send of info.
 
 class SkullguiApp:
@@ -196,7 +195,7 @@ class SkullguiApp:
         main.pack(side='top')
         
         # Main widget
-        self.mainwindow = main
+        self.mainwindow = main 
         
         if not iso:
             self.mainwindow.mainloop()
@@ -225,7 +224,6 @@ class SkullguiApp:
         
         self.print(msg)
         
-        # todo send msg down socket
         self.send(msg)
 
         
@@ -235,13 +233,13 @@ class SkullguiApp:
         
     def save(self):
         filename = self.Save_Entry.get()
-        self.print("save", filename)
+        self.print(f"save {filename}")
         self.send(f"save::{filename}")
 
         
     def load(self):
         filename = self.Load_Entry.get()
-        self.print("load", filename)
+        self.print(f"load {filename}")
         self.send(f"load::{filename}")
 
     def reset(self):

@@ -45,23 +45,39 @@ class rasp:
                 if cmd.cmd in ['height', 'pitch', 'yaw', 'roll', 'width']:
                     logging.info("ATTEMPT MOVE :: %s :: %d" % (cmd.cmd, cmd.amount))
                     self.move(cmd.cmd, cmd.amount)
+                    
                 elif cmd.cmd == "save":
-                    logging.info("SAVING... :: height %d | pitch %d | yaw %d" % (self.pos['height'],
-                                                                                 self.pos['pitch'],
-                                                                                 self.pos['yaw'],
-                                                                                 self.pos['roll'],
-                                                                                 self.pos['width']))
+                    logging.info(f"SAVING...")
                     # create packet of a dictionary to send back
                     data_string = pickle.dumps(self.pos)
                     # send it through the socket
                     self.sock.send(data_string)
                     logging.info("SENT POS INFO")
-
+                    
+                elif cmd.cmd == "load":
+                    # move to pos
+                    logging.info(f"MOVING TO :: {cmd.pos}")
+                    # height
+                    height_diff = cmd.pos["height"] - self.pos["height"]
+                    self.move(axis="height", distance=height_diff)
+                    # width
+                    width_diff = cmd.pos["width"] - self.pos["width"]
+                    self.move(axis="width", distance=width_diff)                 
+                    # pitch
+                    pitch_diff = cmd.pos["pitch"] - self.pos["pitch"]
+                    self.move(axis="pitch", distance=pitch_diff)
+                    # yaw
+                    yaw_diff = cmd.pos["yaw"] - self.pos["yaw"] 
+                    self.move(axis="yaw", distance=yaw_diff)
+                    # roll
+                    roll_diff = cmd.pos["roll"] - self.pos["roll"]
+                    self.move(axis="roll", distance=roll_diff)
+                    
                 elif cmd.cmd == "reset":
                     # reset all pos, move back to 0
                     logging.info("RESET POS TO ORIGIN")
                     self.reset()
-                    pass  # todo move
+                    pass  # todo move 
 
                 elif cmd.cmd == "close":
                     # close the socket nicely, reset to 0
@@ -86,7 +102,9 @@ class rasp:
         # get difference between max and current
         # todo fix this!
         # move that amount
+        logging.info(f"MOVING {axis} -> {distance}")
         self.pos[axis] += distance
+        logging.info(f"ARRIVED {axis} :: {self.pos[axis]}")
 
     def setup(self):
         logging.basicConfig(level=logging.INFO, format='[INFO :: %(asctime)s] :: %(message)s')
