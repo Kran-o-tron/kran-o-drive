@@ -7,21 +7,21 @@ class CMD:
     """
 
     def __init__(self, comm: str, amount: int = None, pos: dict = None): 
-        self.cmd = None
+        self.action = None
         self.amount = amount
         if comm not in cmds:
             print('bad cmd')
-            self.cmd = ''
+            self.action = ''
             self.amount = 0
-        self.cmd = comm
+        self.action = comm
         self.amount = amount
         self.pos = pos
 
     def __repr__(self):
-        return f"{self.cmd}::{self.amount}"
+        return f"{self.action}::{self.amount}"
 
     def get_action(self) -> str:
-        return self.cmd
+        return self.action
 
     def get_amount(self) -> int:
         return self.amount

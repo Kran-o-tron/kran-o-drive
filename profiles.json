@@ -1,1 +1,1 @@
-{"one": {"height": 100, "pitch": 0, "yaw": 0, "roll": 0, "width": 45}, "two": {"height": -100, "pitch": 0, "yaw": 0, "roll": 0, "width": -45}, "three": {"height": 250, "pitch": 0, "yaw": 0, "roll": 0, "width": 45}}
+{"one": {"height": 100, "pitch": 0, "yaw": 0, "roll": 0, "width": 45}, "two": {"height": -100, "pitch": 0, "yaw": 0, "roll": 0, "width": -45}, "three": {"height": 250, "pitch": 0, "yaw": 0, "roll": 0, "width": 45}, "four": {"height": 100, "pitch": -2, "yaw": -2, "roll": 2, "width": 43}}

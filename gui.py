@@ -1,21 +1,21 @@
-import os, argparse
-from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+import argparse
+from socket import socket, AF_INET, SOCK_STREAM
 import tkinter as tk
 import tkinter.ttk as ttk
+
 
 # todo hardcode limits for each axis & prevent send of info.
 
 class SkullguiApp:
     def __init__(self, master=None, mach_port=0, iso=False):
-        
+
         if mach_port != 0:
             # connect to port of main thread!
             self.s = socket(AF_INET, SOCK_STREAM)
             print("Connecting...")
             self.s.connect(('', mach_port))
             print("Connected!")
-            
-        
+
         # build ui
         main = ttk.Frame(master)
 
@@ -29,7 +29,8 @@ class SkullguiApp:
         Reset_Button.config(text='RESET')
         Reset_Button.pack(side='top')
         Load_Label = ttk.Label(saveload_inner)
-        Load_Label.config(anchor='w', cursor='bottom_side', font='application', justify='right')
+        Load_Label.config(anchor='w', cursor='bottom_side', font='application',
+                          justify='right')
         Load_Label.config(takefocus=False, text='Load File:')
         Load_Label.pack(side='top')
         self.Load_Entry = ttk.Entry(saveload_inner)
@@ -51,13 +52,12 @@ class SkullguiApp:
         saveload_inner.pack(anchor='s', side='left')
         saveload.config(height='200', width='200')
         saveload.pack(anchor='w', side='left')
-        
+
         Load_Button.configure(command=self.load)
         Save_Button.configure(command=self.save)
         Reset_Button.configure(command=self.reset)
         List_Button.configure(command=self.list)
-        
-        
+
         # step amount
         step_label = ttk.Label(main)
         step_label.config(compound='top', cursor='arrow', text='Step Amount')
@@ -69,7 +69,7 @@ class SkullguiApp:
         self.step_entry.insert('0', _text_)
         self.step_entry.pack(side='top')
         self.step_entry.pack_propagate(0)
-        
+
         # height
         Height_Frame = ttk.Frame(main)
         Height_Label = ttk.Label(Height_Frame)
@@ -86,7 +86,7 @@ class SkullguiApp:
         Height_Value.pack(side='top')
         Height_Frame.config(height='200', width='200')
         Height_Frame.pack(side='left')
-        
+
         Height_Plus.configure(command=lambda: self.button("Height_Plus"))
         Height_Minus.configure(command=lambda: self.button("Height_Minus"))
 
@@ -109,10 +109,10 @@ class SkullguiApp:
         Width_Value.pack(side='top')
         Width_Frame.config(height='200', width='200')
         Width_Frame.pack(anchor='e', side='left')
-        
+
         Width_Plus.configure(command=lambda: self.button("Width_Plus"))
         Width_Minus.configure(command=lambda: self.button("Width_Minus"))
-        
+
         # pitch
         Pitch_Frame = ttk.Frame(main)
         Pitch_Label = ttk.Label(Pitch_Frame)
@@ -129,10 +129,10 @@ class SkullguiApp:
         Pitch_Value.pack(side='top')
         Pitch_Frame.config(height='200', width='200')
         Pitch_Frame.pack(side='left')
-        
+
         Pitch_Plus.configure(command=lambda: self.button("Pitch_Plus"))
         Pitch_Minus.configure(command=lambda: self.button("Pitch_Minus"))
-        
+
         # yaw
         Yaw_Frame = ttk.Frame(main)
         Yaw_Label = ttk.Label(Yaw_Frame)
@@ -152,10 +152,10 @@ class SkullguiApp:
         Yaw_Value.pack(side='top')
         Yaw_Frame.config(height='200', width='200')
         Yaw_Frame.pack(side='left')
-        
+
         Yaw_Plus.configure(command=lambda: self.button("Yaw_Plus"))
         Yaw_Minus.configure(command=lambda: self.button("Yaw_Minus"))
-        
+
         # roll
         Roll_Frame = ttk.Frame(main)
         Roll_Label = ttk.Label(Roll_Frame)
@@ -175,10 +175,10 @@ class SkullguiApp:
         Roll_Value.pack(side='top')
         Roll_Frame.config(height='200', width='200')
         Roll_Frame.pack(side='left')
-        
+
         Roll_Plus.configure(command=lambda: self.button("Roll_Plus"))
         Roll_Minus.configure(command=lambda: self.button("Roll_Minus"))
-        
+
         # commands
         Commands_Frame = ttk.Frame(main)
         Commands_Label = ttk.Label(Commands_Frame)
@@ -186,33 +186,34 @@ class SkullguiApp:
         Commands_Label.pack(side='top')
         self.Commands_Window = tk.Text(Commands_Frame, width=15, height=10)
         self.Commands_Window.config(state=tk.DISABLED)
-        self.Commands_Window.pack(anchor='s', expand='true', fill='both', side='bottom')
+        self.Commands_Window.pack(anchor='s', expand='true', fill='both',
+                                  side='bottom')
         Commands_Frame.config(height='200', width='200')
         Commands_Frame.pack(expand='true', fill='both', side='top')
-        
+
         # main
         main.config(height='200', width='200')
         main.pack(side='top')
-        
+
         # Main widget
-        self.mainwindow = main 
-        
+        self.mainwindow = main
+
         if not iso:
             self.mainwindow.mainloop()
-            
+
     def print(self, string: str):
         self.Commands_Window.config(state=tk.NORMAL)
         self.Commands_Window.insert(tk.END, string + '\n')
         self.Commands_Window.config(state=tk.DISABLED)
         self.Commands_Window.see(tk.END)
-        
+
     def button(self, command):
         # get value from entry
         try:
             step_size = int(self.step_entry.get())
         except ValueError as e:
             print("GUI: INVALID STEP SIZE - NO COMMAND SENT")
-            return # end step attempt
+            return  # end step attempt
 
         split = command.split("_")
         if split[1] == "Plus":
@@ -221,22 +222,20 @@ class SkullguiApp:
         else:
             # send neg value
             msg = f"{split[0].lower()}::{-step_size}"
-        
+
         self.print(msg)
-        
+
         self.send(msg)
 
-        
     def list(self):
         self.print("list")
         self.send("list")
-        
+
     def save(self):
         filename = self.Save_Entry.get()
         self.print(f"save {filename}")
         self.send(f"save::{filename}")
 
-        
     def load(self):
         filename = self.Load_Entry.get()
         self.print(f"load {filename}")
@@ -248,16 +247,17 @@ class SkullguiApp:
 
     def send(self, cmd: str):
         self.s.sendall(cmd.encode())
-        
+
     def run(self):
         self.mainwindow.mainloop()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('port', type=int, help="port for mach.py connection")
     args = parser.parse_args()
     print(args.port)
-    
+
     root = tk.Tk()
     root.title("SkullPos")
     root.resizable(False, False)
