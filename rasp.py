@@ -4,6 +4,9 @@ import sys
 from socket import error as socket_error
 import bluetooth
 import logging
+import time
+from adafruit_motorkit import MotorKit
+from adafruit_motor import stepper
 
 from skullpkt import Skullpkt
 
@@ -15,9 +18,33 @@ class Rasp:
     GPIO.
     """
 
-    def __init__(self):
+    def __init__(self, demo: bool):
+        self.uuid = None
+        self.pos = None
+        self.limits = None
+        self.width: MotorKit
+        self.left_right: MotorKit
+        self.pitch_yaw: MotorKit
+        self.roll: MotorKit
+        self.server_sock = None
+
         self.setup()  # start variables and wait for connection
-        self.mainloop()  # enter connection loop
+        self.plan_rotate('pitch', 10)
+        self.plan_rotate('pitch', 10)
+        self.plan_rotate('pitch', 10)
+        self.plan_rotate('pitch', 10)
+        self.plan_rotate('pitch', 10)
+        self.plan_rotate('pitch', 10)
+        self.plan_rotate('pitch', -10)
+        self.plan_rotate('pitch', -10)
+        self.plan_rotate('pitch', -10)
+        self.plan_rotate('pitch', -10)
+        self.plan_rotate('pitch', -10)
+        self.plan_rotate('pitch', -10)
+        self.plan_rotate('pitch', -10)
+        if not demo:
+            self.bluetooth_setup()
+            self.mainloop()  # enter connection loop
 
     def mainloop(self):
         """Main execution loop for Mach. Waits for commands and executes their
@@ -44,10 +71,12 @@ class Rasp:
 
             # handle packet data
             for cmd in pkt.get_pkt_cmds():
-                if cmd.action in ['height', 'pitch', 'yaw', 'roll', 'width']:
+                if cmd.action in ['pitch', 'yaw', 'roll']:
                     logging.info(
                         "ATTEMPT MOVE :: %s :: %d" % (cmd.action, cmd.amount))
-                    self.move(cmd.action, cmd.amount)
+                    self.plan_rotate(cmd.action, cmd.amount)
+                elif cmd.action in ['height', 'width']:
+                    self.plan_translate(cmd.action, cmd.amount)
 
                 elif cmd.action == "save":
                     logging.info(f"SAVING...")
@@ -62,19 +91,19 @@ class Rasp:
                     logging.info(f"MOVING TO :: {cmd.pos}")
                     # height
                     height_diff = cmd.pos["height"] - self.pos["height"]
-                    self.move(axis="height", distance=height_diff)
+                    self.plan_rotate(axis="height", distance=height_diff)
                     # width
                     width_diff = cmd.pos["width"] - self.pos["width"]
-                    self.move(axis="width", distance=width_diff)
+                    self.plan_rotate(axis="width", distance=width_diff)
                     # pitch
                     pitch_diff = cmd.pos["pitch"] - self.pos["pitch"]
-                    self.move(axis="pitch", distance=pitch_diff)
+                    self.plan_rotate(axis="pitch", distance=pitch_diff)
                     # yaw
                     yaw_diff = cmd.pos["yaw"] - self.pos["yaw"]
-                    self.move(axis="yaw", distance=yaw_diff)
+                    self.plan_rotate(axis="yaw", distance=yaw_diff)
                     # roll
                     roll_diff = cmd.pos["roll"] - self.pos["roll"]
-                    self.move(axis="roll", distance=roll_diff)
+                    self.plan_rotate(axis="roll", distance=roll_diff)
 
                 elif cmd.action == "reset":
                     # reset all pos, move back to 0
@@ -98,12 +127,71 @@ class Rasp:
         self.pos['roll'] = 0
         self.pos['width'] = 0  # todo move
 
-    def move(self, axis: str, distance: int):
+    def plan_rotate(self, axis: str, distance: int):
         # move that amount
-        logging.info(f"MOVING {axis} -> {distance}")
-        self.pos[axis] += distance
-        logging.info(
-            f"ARRIVED {axis} :: {self.pos[axis]}")  # todo move the motorkit
+        # note, we are microstepping here (360/(200*4)) == 0.45 degrees per step.
+        # we will only move the amount that is permitted by the limits set in .setup()
+        logging.info(f"MOVING {axis} -> degrees[{0.45*distance}]:steps[{distance}]")
+
+        buffer_amount: int = 0
+        if distance < 0:
+            # we are moving a negative amount - get negative limit
+            if self.pos[axis] > 0:
+                buffer_amount = self.limits[axis][0] - (-1 * self.pos[axis])
+            elif self.pos[axis] < 0:
+                buffer_amount = self.limits[axis][0] + self.pos[axis]
+            else:
+                buffer_amount = self.limits[axis][0]
+        elif distance > 0:
+            # we are moving a positive amount - get positive limit
+            if self.pos[axis] > 0:
+                buffer_amount = self.limits[axis][1] - self.pos[axis]
+            elif self.pos[axis] < 0:
+                buffer_amount = self.limits[axis][1] + (-1 * self.pos[axis])
+            else:
+                buffer_amount = self.limits[axis][1]
+
+        logging.info(f"buffer to move -> {buffer_amount}")
+
+        if distance > buffer_amount:
+            logging.info(f"DISTANCE TOO GREAT -> TRY AGAIN")
+            return
+
+        # move the motor
+        self.perform_rotate(axis, distance)
+
+    def perform_rotate(self, axis: str, distance: int):
+
+        direction: int
+        if distance < 0:
+            direction = stepper.BACKWARD
+        elif distance > 0:
+            direction = stepper.FORWARD
+        else:
+            return
+
+        for _ in range(0, distance):
+            if axis == 'pitch':
+                self.pitch_yaw.stepper1.onestep(direction=direction)
+            elif axis == 'yaw':
+                self.pitch_yaw.stepper2.onestep(direction=direction)
+            elif axis == 'roll':
+                self.roll.stepper1.onestep(direction=direction)
+            elif axis == 'height':
+                self.height_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+                self.height_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
+
+            time.sleep(0.01)
+
+        if axis in ['pitch', 'roll', 'yaw']:
+            self.pos[axis] += (distance * 0.45)
+        else:
+            self.pos[axis] += (distance * 0.01)  # todo check this amount
+
+        logging.info(f"MOVED TO: {self.pos[axis]}")
+
+    def plan_translate(self, axis: str, distance: int):
+        pass
 
     def setup(self):
         logging.basicConfig(level=logging.INFO,
@@ -116,23 +204,37 @@ class Rasp:
         self.pos['yaw'] = 0
         self.pos['roll'] = 0
         self.pos['width'] = 0
-        # todo reset pos if out of wack
 
+        # define limits for the stepper motors
+        self.limits = dict()
+        self.limits['height'] = (100, 500)  # todo check
+        self.limits['width'] = (100, 500)  # todo check
+        self.limits['pitch'] = (45, 45)  # todo check
+        self.limits['yaw'] = (45, 45)  # todo check
+        self.limits['roll'] = (45, 45)  # todo check
+
+        # initiate the steppers
+        self.width_motor = MotorKit(address=0x60)  # todo fix addresses
+        self.height_motors = MotorKit(address=0x61)
+        self.pitch_yaw = MotorKit(address=0x62, steppers_microsteps=4)
+        self.roll = MotorKit(address=0x63, steppers_microsteps=4)
+
+    def bluetooth_setup(self):
         """ bluetooth connection """
         self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         self.server_sock.bind(("", bluetooth.PORT_ANY))
         self.server_sock.listen(1)
-        bluetooth.advertise_service(self.server_sock, "skullpos",
-                                    service_id=self.uuid,
-                                    service_classes=[self.uuid,
-                                                     bluetooth.SERIAL_PORT_CLASS],
+        bluetooth.advertise_service(self.server_sock, "skullpos", service_id=self.uuid,
+                                    service_classes=[self.uuid, bluetooth.SERIAL_PORT_CLASS],
                                     profiles=[bluetooth.SERIAL_PORT_PROFILE])
-        logging.info(
-            f"LISTENING on RFCOMM :: {bluetooth.read_local_bdaddr()[0]}")
+        logging.info(f"LISTENING on RFCOMM :: {bluetooth.read_local_bdaddr()[0]}")
         # wait for a connection!
         self.sock, self.client_info = self.server_sock.accept()
         logging.info("ACCEPTED :: %s" % self.client_info[0])
 
 
 if __name__ == "__main__":
-    rasp = Rasp()
+    if sys.argv[1] == "demo":
+        rasp = Rasp(True)
+    else:
+        rasp = Rasp(False)

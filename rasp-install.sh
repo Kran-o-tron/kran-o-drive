@@ -17,7 +17,9 @@ sudo apt-get install libbluetooth-dev \
   libboost-python-dev \
   libboost-thread-dev \
   libglib2.0-dev bluez \
-  bluez-hcidump
+  bluez-hcidump \
+  python-smbus \
+  i2c-tools
 
 $PIP install --user gattlib \
   pybluez \

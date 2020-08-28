@@ -64,11 +64,23 @@ class SkullguiApp:
         step_label.pack(side='top')
         self.step_entry = ttk.Entry(main)
         self.step_entry.config(justify='center')
-        _text_ = '''1'''
+        _text_ = '''0'''
         self.step_entry.delete('0', 'end')
         self.step_entry.insert('0', _text_)
         self.step_entry.pack(side='top')
+        self.step_entry.bind("<Return>", self.update_steps)
         self.step_entry.pack_propagate(0)
+
+        # translate
+        transfer_label = ttk.Frame(master)
+        self.degrees_label = ttk.Label(transfer_label)
+        self.degrees_label.config(text='Degrees: 0')
+        self.degrees_label.pack(side='top')
+        self.distance_label = ttk.Label(transfer_label)
+        self.distance_label.config(text='Translation (mm): 0')
+        self.distance_label.pack(side='top')
+        transfer_label.config(height='200', width='200')
+        transfer_label.pack(side='top')
 
         # height
         Height_Frame = ttk.Frame(main)
@@ -200,6 +212,16 @@ class SkullguiApp:
 
         if not iso:
             self.mainwindow.mainloop()
+
+    def update_steps(self, event):
+        try:
+            step_size = int(self.step_entry.get())
+        except ValueError as e:
+            print("GUI: INVALID STEP SIZE - NO COMMAND SENT")
+            return  # end step attempt
+
+        self.degrees_label.config(text=f"Degrees: {step_size * 0.45}")
+        self.distance_label.config(text=f"Translation (mm): {step_size * 0.1}")
 
     def print(self, string: str):
         self.Commands_Window.config(state=tk.NORMAL)
