@@ -22,26 +22,16 @@ class Rasp:
         self.uuid = None
         self.pos = None
         self.limits = None
-        self.width: MotorKit
-        self.left_right: MotorKit
-        self.pitch_yaw: MotorKit
-        self.roll: MotorKit
+        self.width: MotorKit = None
+        self.pitch_yaw: MotorKit = None
+        self.roll: MotorKit = None
+        self.width_motor: MotorKit = None
+        self.height_motors: MotorKit = None
+        self.sock = None
+        self.client_info = None
         self.server_sock = None
 
         self.setup()  # start variables and wait for connection
-        self.plan_rotate('pitch', 10)
-        self.plan_rotate('pitch', 10)
-        self.plan_rotate('pitch', 10)
-        self.plan_rotate('pitch', 10)
-        self.plan_rotate('pitch', 10)
-        self.plan_rotate('pitch', 10)
-        self.plan_rotate('pitch', -10)
-        self.plan_rotate('pitch', -10)
-        self.plan_rotate('pitch', -10)
-        self.plan_rotate('pitch', -10)
-        self.plan_rotate('pitch', -10)
-        self.plan_rotate('pitch', -10)
-        self.plan_rotate('pitch', -10)
         if not demo:
             self.bluetooth_setup()
             self.mainloop()  # enter connection loop
@@ -49,8 +39,6 @@ class Rasp:
     def mainloop(self):
         """Main execution loop for Mach. Waits for commands and executes their
         corresponding logic.
-
-        :return:
         """
         while True:
             try:
@@ -117,20 +105,39 @@ class Rasp:
                     self.close()
 
     def close(self):
+        """
+        Handle closing down of machine
+        :return:
+        """
+        self.reset()
         self.sock.close()
         sys.exit(0)
 
     def reset(self):
-        self.pos['height'] = 0
-        self.pos['pitch'] = 0
-        self.pos['yaw'] = 0
-        self.pos['roll'] = 0
-        self.pos['width'] = 0  # todo move
+        """
+        ATTEMPT to move back to home positions
+        """
+        height_diff = 0 - self.pos["height"]
+        width_diff = 0 - self.pos["width"]
+        pitch_diff = 0 - self.pos["pitch"]
+        yaw_diff = 0 - self.pos["yaw"]
+        roll_diff = 0 - self.pos["roll"]
+
+        self.plan_rotate(axis='height', distance=height_diff)
+        self.plan_rotate(axis='width', distance=width_diff)
+        self.plan_rotate(axis='pitch', distance=pitch_diff)
+        self.plan_rotate(axis='raw', distance=yaw_diff)
+        self.plan_rotate(axis='roll', distance=roll_diff)
 
     def plan_rotate(self, axis: str, distance: int):
-        # move that amount
-        # note, we are microstepping here (360/(200*4)) == 0.45 degrees per step.
-        # we will only move the amount that is permitted by the limits set in .setup()
+        """
+        Figure out how much we can rotate:
+        Note, we are microstepping here (360/(200*4)) == 0.45 degrees per step.
+        We will only move the amount that is permitted by the limits set in self.setup()
+
+        :param axis: raw, roll, pitch
+        :param distance: number of steps to move
+        """
         logging.info(f"MOVING {axis} -> degrees[{0.45*distance}]:steps[{distance}]")
 
         buffer_amount: int = 0
@@ -158,10 +165,51 @@ class Rasp:
             return
 
         # move the motor
-        self.perform_rotate(axis, distance)
+        self.perform_movement(axis, distance)
 
-    def perform_rotate(self, axis: str, distance: int):
+    def plan_translate(self, axis: str, distance: int):
+        """
+        Figure out how much we can rotate:
+        We will only move the amount that is permitted by the limits set in self.setup()
+        :param axis: height, width
+        :param distance: number of steps to move
+        :return:
+        """
+        # todo sort out here
+        # logging.info(f"MOVING {axis} -> degrees[{0.01 * distance}]:steps[{distance}]")  # todo change
+        # buffer_amount: int = 0
+        # if distance < 0:
+        #     # we are moving a negative amount - get negative limit
+        #     if self.pos[axis] > 0:
+        #         buffer_amount = self.limits[axis][0] - (-1 * self.pos[axis])
+        #     elif self.pos[axis] < 0:
+        #         buffer_amount = self.limits[axis][0] + self.pos[axis]
+        #     else:
+        #         buffer_amount = self.limits[axis][0]
+        # elif distance > 0:
+        #     # we are moving a positive amount - get positive limit
+        #     if self.pos[axis] > 0:
+        #         buffer_amount = self.limits[axis][1] - self.pos[axis]
+        #     elif self.pos[axis] < 0:
+        #         buffer_amount = self.limits[axis][1] + (-1 * self.pos[axis])
+        #     else:
+        #         buffer_amount = self.limits[axis][1]
+        #
+        # logging.info(f"buffer to move -> {buffer_amount}")
+        #
+        # if distance > buffer_amount:
+        #     logging.info(f"DISTANCE TOO GREAT -> TRY AGAIN")
+        #     return
 
+        # move the motor
+        self.perform_movement(axis, distance)
+
+    def perform_movement(self, axis: str, distance: int):
+        """
+        Actually move the stepper motors for the specified distance
+        :param axis: height, width, raw, roll, pitch
+        :param distance: number of steps to move
+        """
         direction: int
         if distance < 0:
             direction = stepper.BACKWARD
@@ -172,12 +220,13 @@ class Rasp:
 
         for _ in range(0, distance):
             if axis == 'pitch':
-                self.pitch_yaw.stepper1.onestep(direction=direction)
+                self.pitch_yaw.stepper1.onestep(direction=direction, style=stepper.MICROSTEP)
             elif axis == 'yaw':
-                self.pitch_yaw.stepper2.onestep(direction=direction)
+                self.pitch_yaw.stepper2.onestep(direction=direction, style=stepper.MICROSTEP)
             elif axis == 'roll':
-                self.roll.stepper1.onestep(direction=direction)
+                self.roll.stepper1.onestep(direction=direction, style=stepper.MICROSTEP)
             elif axis == 'height':
+                # interleave movement - strength!
                 self.height_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
                 self.height_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
 
@@ -189,9 +238,6 @@ class Rasp:
             self.pos[axis] += (distance * 0.01)  # todo check this amount
 
         logging.info(f"MOVED TO: {self.pos[axis]}")
-
-    def plan_translate(self, axis: str, distance: int):
-        pass
 
     def setup(self):
         logging.basicConfig(level=logging.INFO,
@@ -220,7 +266,9 @@ class Rasp:
         self.roll = MotorKit(address=0x63, steppers_microsteps=4)
 
     def bluetooth_setup(self):
-        """ bluetooth connection """
+        """
+        Setup the bluetooth connection (wait until we recv conn)
+        """
         self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         self.server_sock.bind(("", bluetooth.PORT_ANY))
         self.server_sock.listen(1)
