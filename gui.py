@@ -4,9 +4,8 @@ import tkinter as tk
 import tkinter.ttk as ttk
 
 
-# todo hardcode limits for each axis & prevent send of info.
+class SkullGuiApp:
 
-class SkullguiApp:
     def __init__(self, master=None, mach_port=0, iso=False):
 
         if mach_port != 0:
@@ -283,5 +282,5 @@ if __name__ == '__main__':
     root = tk.Tk()
     root.title("SkullPos")
     root.resizable(False, False)
-    app = SkullguiApp(root, args.port, True)
+    app = SkullGuiApp(root, args.port, True)
     app.run()
