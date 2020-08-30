@@ -211,7 +211,7 @@ class Rasp:
         self.limits['width'] = (100, 500)  # todo check
         self.limits['pitch'] = (45, 45)  # todo check
         self.limits['yaw'] = (45, 45)  # todo check
-        self.limits['roll'] = (45, 45)  # todo check
+        self.limits['roll'] = (30, 30)  # todo check
 
         # initiate the steppers
         self.width_motor = MotorKit(address=0x60)  # todo fix addresses
