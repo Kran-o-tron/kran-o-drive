@@ -1,4 +1,5 @@
-cmds = ['pitch', 'yaw', 'height', 'roll', 'width', 'save', 'load', 'list', 'reset', 'close']
+cmds = ['pitch', 'yaw', 'height', 'roll', 'width', 'save', 'load', 'list', 'reset', 'close',
+        'playback']
 
 class CMD:
     """

@@ -212,7 +212,7 @@ class SkullGuiApp:
         if not iso:
             self.mainwindow.mainloop()
 
-    def update_steps(self, event):
+    def update_steps(self, event ):
         try:
             step_size = int(self.step_entry.get())
         except ValueError as e:

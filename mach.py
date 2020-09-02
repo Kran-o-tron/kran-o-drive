@@ -1,13 +1,18 @@
 import argparse
+import os
 import bluetooth
 import json
 import pickle
 import signal
 import sys
-from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+import time
 
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from cmd import CMD
 from skullpkt import Skullpkt
+from typing import Optional
+from io import TextIOWrapper
+import datetime
 
 
 def signal_handler(sig, frame):
@@ -24,20 +29,31 @@ class Mach:
     interface.
     """
 
-    def __init__(self, bluetooth_addr: str, gui=False):
+    def __init__(self, bluetooth_addr: str, gui=False, playback=True):
         self.bluetooth_addr = bluetooth_addr
+        self.playback_enabled = playback
         self.bluetooth_socket = None  # socket over which we comm with pi.
         self.save_wait = False  # indicate we need to recv from the sock
         self.profiles = None  # saved profiles
         self.profile_name = None  # current file to save to
         self.gui_socket = None  # socket to comm with GUI over.
         self.gui_conn = None  # connection between gui and machine
+        self.f_out: Optional[TextIOWrapper] = None  # file to be written to in playback mode
+        self.realtime_playback = False  # either repeat IRL timings, or wait until input confirm
 
         if gui:
             self.setup_gui()
 
+        if self.playback_enabled:
+            self.playback_setup()
+
         self.load_from_disk()
-        self.connect()
+
+        if bluetooth_addr != '0':  # demo purposes
+            self.connect()
+        else:
+            self.demo = True
+
         self.mainloop(gui)
 
     def setup_gui(self):
@@ -106,6 +122,25 @@ class Mach:
                     for entry in self.profiles.keys():
                         print(f'{entry} -> {self.profiles[entry]}')
 
+                # -------- playback --------
+                elif command.startswith("playback::"):
+                    args = command.split("::")
+                    if args[1] == "IRL":
+                        self.realtime_playback = True
+                    elif args[1] == "CONTROL":
+                        self.realtime_playback = False
+                    else:
+                        # check if file exists
+                        if os.path.exists(f"playbacks/{args[1]}"):
+                            self.load_from_playback(f"playbacks/{args[1]}")
+                        else:
+                            print("BAD PLAYBACK MODE, EITHER `IRL` or `CONTROL` or `FILE_NAME`")
+
+                # -------- playback final --------
+                elif command.startswith("playback_final::"):
+                    args = command.split("::")
+                    self.play_final_pos(f"playbacks/{args[1]}")
+
                 # -------- help --------
                 elif command == "?":
                     print("Valid commands...")
@@ -123,24 +158,115 @@ class Mach:
 
             # -------- SEND OVER SOCK --------
             if len(pkt.get_pkt_cmds()) != 0:
-                data_string = pickle.dumps(pkt)
-                self.bluetooth_socket.send(
-                    data_string)  # send along the socket to the rpi
+                self.send_to_pi(pkt)
 
             # -------- SAVE RESPONSE --------
             if self.save_wait:
                 # wait for save data from RPI
                 self.save_wait = False
-                data = self.bluetooth_socket.recv(4096)
-                data = pickle.loads(data)
-                print(data)
-                self.profiles[self.profile_name] = data
-                self.save_to_disk()
+                if not self.demo:
+                    data = self.bluetooth_socket.recv(4096)
+                    data = pickle.loads(data)
+                    print(data)
+                    self.profiles[self.profile_name] = data
+                    self.save_to_disk()
 
             # -------- END CONN --------
             if close:
-                self.bluetooth_socket.close()
+                if not self.demo:
+                    self.bluetooth_socket.close()
                 sys.exit(0)
+
+    def send_to_pi(self, pkt):
+        data_string = pickle.dumps(pkt)
+        if not self.demo:
+            self.bluetooth_socket.send(data_string)  # send along the socket to the rpi
+        # ~~ playback save ~~
+        if self.playback_enabled:
+            self.save_cmd_for_playback(pkt.get_pkt_cmds())
+
+    def playback_setup(self):
+        """
+        Logic for handling playback setup
+        """
+        right_now = datetime.datetime.now()
+        file_format = right_now.strftime("%b-%d-%Y(%H.%M.%S)")
+        if not os.path.exists('playbacks'):
+            os.makedirs('playbacks')
+        file_format = f"playbacks/SkullBot_{file_format}.csv"
+        print(f"\n:: Saving playback info to {file_format}")
+        self.f_out = open(file_format, 'w')
+
+    def save_cmd_for_playback(self, cmd_list: list):
+        for cmd in cmd_list:
+            print(cmd)
+            if cmd.action.startswith('save'):
+                continue
+            else:
+                right_now = datetime.datetime.now()
+                date_time = right_now.strftime("%b-%d-%Y(%H:%M:%S)")
+                self.f_out.write(f"{date_time},{cmd}\n")  # save the cmd to file
+
+    def load_from_playback(self, file_name: str):
+        commands = []
+        with open(file_name, 'r') as fp:
+            for line in fp.readlines():
+                try:
+                    time_sent = line.split(',')[0]
+                    cmd = line.split(',')[1]
+                    commands.append((time_sent, cmd))
+                except IndexError as e:
+                    print("ERROR: BAD FILE FORMAT")
+                    return
+
+        ftr = [3600, 60, 1]  # how many seconds are in each timeslot
+        time_str = file_name.split("(")[1].split(")")[0]
+        prev_seconds = sum([a * b for a, b in zip(ftr, map(int, time_str.split('.')))])
+
+        for command in commands:
+            pkt = Skullpkt()
+            cmd = CMD(comm=command[1].split("::")[0], amount=int(command[1].split("::")[1]))
+            pkt.add_cmd(cmd)
+            print(f"Sending... {command[1]}")
+
+            if self.realtime_playback:
+                time_section = command[0].split("(")[1].split(")")[0]
+                current_seconds = sum([a * b for a, b in zip(ftr, map(int, time_section.split(
+                    ':')))])
+                time_to_wait = current_seconds - prev_seconds
+                print(f"Waiting {time_to_wait} seconds...")
+                time.sleep(time_to_wait)
+            else:
+                # wait for user input to move on
+                # todo gui or cli check
+                _ = input("Press any button to send next command...")
+
+            # ------- now send to the pi -------
+            if len(pkt.get_pkt_cmds()) != 0:
+                self.send_to_pi(pkt)
+
+    def play_final_pos(self, file_name):
+        position = {'height': 0, 'width': 0, 'pitch': 0, 'roll': 0, 'yaw': 0}
+
+        with open(file_name, 'r') as fp:
+            for line in fp.readlines():
+                try:
+                    cmd = line.split(',')[1]
+                    position[cmd.split("::")[0]] += int(cmd.split("::")[1])
+                except IndexError as e:
+                    print("ERROR: BAD FILE FORMAT")
+                    return
+
+        print(f"Final position: {position}")
+
+        pkt = Skullpkt()
+        cmd = CMD('load')
+        cmd.pos = position
+        pkt.add_cmd(cmd)
+
+        # ------- now send to the pi -------
+        if len(pkt.get_pkt_cmds()) != 0:
+            self.send_to_pi(pkt)
 
     def do_move(self, args, command, pkt):
         """Logic for controlling move commands to the pi.
@@ -236,6 +362,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='skullpos client')
     parser.add_argument('bluetooth_addr', type=str)
     parser.add_argument('-gui', action='store_true')
+    parser.add_argument('-no_playback', action='store_false')
     signal.signal(signal.SIGINT, signal_handler)
     args = parser.parse_args()
-    Mach(args.bluetooth_addr, args.gui)
+    Mach(args.bluetooth_addr, args.gui, args.no_playback)
+
+
+# todo remove self.demo lines
