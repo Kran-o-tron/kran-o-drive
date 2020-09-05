@@ -10,16 +10,13 @@ class SkullGuiApp:
     def __init__(self, master=None, mach_port=0, iso=False):
 
         if mach_port != 0:
-            # connect to port of main thread!
             self.s = socket(AF_INET, SOCK_STREAM)
             print("Connecting...")
-            # for i in range(0, 5):
-                # try:
             time.sleep(2)
             try:
                 self.s.connect(('', mach_port))
             except Exception as e:
-                # print(e)
+                print(e)
                 exit(1)
 
             print("Connected!")
@@ -38,8 +35,7 @@ class SkullGuiApp:
         Reset_Button.config(text='RESET')
         Reset_Button.pack(side='top')
         Load_Label = ttk.Label(saveload_inner)
-        Load_Label.config(anchor='w', cursor='bottom_side', font='application',
-                          justify='right')
+        Load_Label.config(anchor='w', cursor='bottom_side', font='application', justify='right')
         Load_Label.config(takefocus=False, text='Load File:')
         Load_Label.pack(side='top')
         self.Load_Entry = ttk.Entry(saveload_inner)
@@ -221,15 +217,31 @@ class SkullGuiApp:
         Roll_Plus.configure(command=lambda: self.button("Roll_Plus"))
         Roll_Minus.configure(command=lambda: self.button("Roll_Minus"))
 
+
         # commands
+
         Commands_Frame = ttk.Frame(main)
         Commands_Label = ttk.Label(Commands_Frame)
+
+        # start and stop playback
+        playback_label = ttk.Label(Commands_Frame)
+        playback_label.config(compound='top', cursor='arrow', text='Playback Controls')
+        playback_label.pack(side='top')
+        start_recording = ttk.Button(Commands_Frame)
+        start_recording.config(text='Start')
+        start_recording.pack(side='top')
+        stop_recording = ttk.Button(Commands_Frame)
+        stop_recording.config(text='Stop')
+        stop_recording.pack(side='top')
+
+        start_recording.configure(command=self.playback_start)
+        stop_recording.configure(command=self.playback_end)
+
         Commands_Label.config(text='Commands Sent:')
         Commands_Label.pack(side='top')
         self.Commands_Window = tk.Text(Commands_Frame, width=15, height=10)
         self.Commands_Window.config(state=tk.DISABLED)
-        self.Commands_Window.pack(anchor='s', expand='true', fill='both',
-                                  side='bottom')
+        self.Commands_Window.pack(anchor='s', expand='true', fill='both', side='bottom')
         Commands_Frame.config(height='200', width='200')
         Commands_Frame.pack(expand='true', fill='both', side='top')
 
@@ -243,7 +255,7 @@ class SkullGuiApp:
         if not iso:
             self.mainwindow.mainloop()
 
-    def update_steps(self, event ):
+    def update_steps(self, event):
         try:
             step_size = int(self.step_entry.get())
         except ValueError as e:
@@ -325,6 +337,14 @@ class SkullGuiApp:
         cmd2 = f"playback_final::{filename}"
         self.print(cmd2)
         self.send(cmd2)
+
+    def playback_start(self):
+        self.print("beginning recording...")
+        self.send("playback::START")
+
+    def playback_end(self):
+        self.print("ending recording...")
+        self.send("playback::END")
 
     def reset(self):
         self.print("reset")

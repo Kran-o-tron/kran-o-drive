@@ -1,6 +1,3 @@
 #!/bin/bash
-#source venv/bin/activate
-pip install \
-  pyobjc \
-  pybluez \
+python3 -m pip install \
   fpdf

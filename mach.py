@@ -1,11 +1,11 @@
 import argparse
 import os
-import bluetooth
 import json
 import pickle
 import signal
 import sys
 import time
+from fpdf import FPDF
 
 import socket
 from cmd import CMD
@@ -29,10 +29,10 @@ class Mach:
     interface.
     """
 
-    def __init__(self, bluetooth_addr: str, gui=False, playback=True):
-        self.bluetooth_addr = bluetooth_addr
+    def __init__(self, ethernet_address: str, gui=False, playback=True):
+        self.ethernet_addr = ethernet_address
         self.playback_enabled = playback
-        self.bluetooth_socket = None  # socket over which we comm with pi.
+        self.ethernet_socket = None  # socket over which we comm with pi.
         self.save_wait = False  # indicate we need to recv from the sock
         self.profiles = None  # saved profiles
         self.profile_name = None  # current file to save to
@@ -41,27 +41,26 @@ class Mach:
         self.f_out: Optional[TextIOWrapper] = None  # file to be written to in playback mode
         self.realtime_playback = False  # either repeat IRL timings, or wait until input confirm
         self.demo = False
-
-        if gui:
-            self.setup_gui()
+        self.last_playback = ""
 
         if self.playback_enabled:
             self.playback_setup()
 
         self.load_from_disk()
 
-        if bluetooth_addr != '0':  # demo purposes
+        if ethernet_address != '0':  # demo purposes
             try:
                 self.connect()
             except Exception as e:
                 print(e)
-                print("couldn't connect! check if you are paired over bluetooth")
-                print("or if it is the correct bluetooth address!")
-                # print(e)
-                # print("ERROR! Couldn't find SkullBot at that address!")
+                print("couldn't connect! Check if you are connected via ethernet and that you "
+                      "have the correct ipv4 address!")
                 exit(1)
         else:
             self.demo = True
+
+        if gui:
+            self.setup_gui()
 
         self.mainloop(gui)
 
@@ -138,6 +137,32 @@ class Mach:
                         self.realtime_playback = True
                     elif args[1] == "CONTROL":
                         self.realtime_playback = False
+                    elif args[1] == "START":
+                        if not self.playback_enabled:
+                            self.playback_enabled = True
+                            self.playback_setup()
+                        else:
+                            print("ERROR! ALREADY RECORDING!")
+                    elif args[1] == "END":
+                        if not self.playback_enabled:
+                            print("ERROR! NOT RECORDING, START WITH `playback::START`")
+                        else:
+                            self.playback_enabled = False
+                            self.f_out.close()
+                            self.f_out = None
+                            with open(self.last_playback, 'r') as file:
+                                pdf = FPDF()
+                                pdf.add_page()
+                                pdf.set_font("Helvetica", size=12)
+                                lines = file.readlines()
+                                for i in range(1, len(lines) + 1):
+                                    txt = lines[i-1]
+                                    pdf.cell(0, 5, txt=txt, ln=i)
+
+                                pdf.output(self.last_playback[:-4] + ".pdf")
+                            print("Saved to: " + self.last_playback[:-4] + ".pdf")
+
+
                     else:
                         # check if file exists
                         if os.path.exists(f"playbacks/{args[1]}"):
@@ -174,7 +199,7 @@ class Mach:
                 # wait for save data from RPI
                 self.save_wait = False
                 if not self.demo:
-                    data = self.bluetooth_socket.recv(4096)
+                    data = self.ethernet_socket.recv(4096)
                     data = pickle.loads(data)
                     print(data)
                     self.profiles[self.profile_name] = data
@@ -183,13 +208,13 @@ class Mach:
             # -------- END CONN --------
             if close:
                 if not self.demo:
-                    self.bluetooth_socket.close()
+                    self.ethernet_socket.close()
                 sys.exit(0)
 
     def send_to_pi(self, pkt):
         data_string = pickle.dumps(pkt)
         if not self.demo:
-            self.bluetooth_socket.send(data_string)  # send along the socket to the rpi
+            self.ethernet_socket.send(data_string)  # send along the socket to the rpi
         # ~~ playback save ~~
         if self.playback_enabled:
             self.save_cmd_for_playback(pkt.get_pkt_cmds())
@@ -205,9 +230,7 @@ class Mach:
         file_format = f"playbacks/SkullBot_{file_format}.csv"
         print(f"\n:: Saving playback info to {file_format}")
         self.f_out = open(file_format, 'w')
-
-    # def playback_stop(self):
-
+        self.last_playback = file_format
 
     def save_cmd_for_playback(self, cmd_list: list):
         for cmd in cmd_list:
@@ -239,7 +262,6 @@ class Mach:
             pkt = Skullpkt()
             cmd = CMD(comm=command[1].split("::")[0], amount=int(command[1].split("::")[1]))
             pkt.add_cmd(cmd)
-            print(f"Sending... {command[1]}")
 
             if self.realtime_playback:
                 time_section = command[0].split("(")[1].split(")")[0]
@@ -250,11 +272,11 @@ class Mach:
                 time.sleep(time_to_wait)
             else:
                 # wait for user input to move on
-                # todo gui or cli check
                 _ = input("Press any button to send next command...")
 
             # ------- now send to the pi -------
             if len(pkt.get_pkt_cmds()) != 0:
+                print(f"Sending... {command[1]}")
                 self.send_to_pi(pkt)
 
     def play_final_pos(self, file_name):
@@ -342,20 +364,13 @@ class Mach:
             self.profiles = json.loads(fp.read())
 
     def connect(self):
-        """Initiate a connection between host and the pi over bluetooth
+        """Initiate a connection between host and the pi over ethernet
 
-        Note: Use of RFCOMM ensures 'reliable' (best effort) delivery!
+        Note: Use of TCP (AF_INET) ensures 'reliable' (best effort) delivery!
         """
-        # instantiate and connect to bluetooth socket
-        # service_matches = bluetooth.find_service(address=self.bluetooth_addr)
-        # first_match = service_matches[0]
-        # port = first_match["port"]
-        # name = first_match["name"]
-        # host = first_match["host"].decode()
 
-        self.bluetooth_socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        # self.bluetooth_socket = socket.socket(socket.AF_BLUETOOTH,socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-        self.bluetooth_socket.connect((self.bluetooth_addr, 1))  # always connect on port 1
+        self.ethernet_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.ethernet_socket.connect((self.ethernet_addr, 44444))  # always connect on port 1
 
     def welcome(self, gui):
         """Welcome msg to terminal
@@ -373,12 +388,12 @@ class Mach:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='skullpos client')
-    parser.add_argument('bluetooth_addr', type=str)
+    parser.add_argument('ipv4_addr', type=str)
     parser.add_argument('-gui', action='store_true')
     parser.add_argument('-no_playback', action='store_false')
     signal.signal(signal.SIGINT, signal_handler)
     args = parser.parse_args()
-    Mach(args.bluetooth_addr, args.gui, args.no_playback)
+    Mach(args.ipv4_addr, args.gui, args.no_playback)
 
 
 # todo remove self.demo lines

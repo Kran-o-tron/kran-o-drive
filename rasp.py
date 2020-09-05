@@ -1,14 +1,11 @@
-import errno
 import pickle
-import sys, os
-from socket import error as socket_error
-import bluetooth
+import sys
+import os
+import socket
 import logging
 import time
 from adafruit_motorkit import MotorKit
 from adafruit_motor import stepper
-import re, uuid
-
 from skullpkt import Skullpkt
 
 
@@ -36,7 +33,7 @@ class Rasp:
         self.setup()  # start variables and wait for connection
         if not demo:
             self.demo = False
-            self.bluetooth_setup()
+            self.network_setup()
             self.mainloop()  # enter connection loop
 
     def mainloop(self):
@@ -46,9 +43,7 @@ class Rasp:
         while True:
             try:
                 data = self.sock.recv(4096)
-            except socket_error as e:
-                if e.errno != errno.ECONNRESET:
-                    raise  # Not error we are looking for
+            except Exception as e:
                 self.sock.close()
                 logging.info("SHUTTING DOWN...")
                 sys.exit(0)
@@ -63,8 +58,7 @@ class Rasp:
             # handle packet data
             for cmd in pkt.get_pkt_cmds():
                 if cmd.action in ['pitch', 'yaw', 'roll']:
-                    logging.info(
-                        "ATTEMPT MOVE :: %s :: %d" % (cmd.action, cmd.amount))
+                    logging.info("ATTEMPT MOVE :: %s :: %d" % (cmd.action, cmd.amount))
                     self.plan_rotate(cmd.action, cmd.amount)
                 elif cmd.action in ['height', 'width']:
                     self.plan_translate(cmd.action, cmd.amount)
@@ -141,7 +135,7 @@ class Rasp:
         :param axis: raw, roll, pitch
         :param distance: number of steps to move
         """
-        logging.info(f"MOVING {axis} -> degrees[{0.45*distance}]:steps[{distance}]")
+        logging.info(f"MOVING {axis} -> degrees[{0.45 * distance}]:steps[{distance}]")
 
         buffer_amount: int = 0
         if distance < 0:
@@ -243,8 +237,7 @@ class Rasp:
         logging.info(f"MOVED TO: {self.pos[axis]}")
 
     def setup(self):
-        logging.basicConfig(level=logging.INFO,
-                            format='[INFO :: %(asctime)s] :: %(message)s')
+        logging.basicConfig(level=logging.INFO, format='[INFO :: %(asctime)s] :: %(message)s')
         logging.info("Hello, SkullBot!")
         self.uuid = "CAFE"
         self.pos = dict()  # used to store info on servo positions
@@ -276,17 +269,17 @@ class Rasp:
                 return
             exit(1)
 
-    def bluetooth_setup(self):
+    def network_setup(self):
         """
-        Setup the bluetooth connection (wait until we recv conn)
+        Setup the ethernet connection (wait until we recv conn)
         """
-        self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        self.server_sock.bind(("", 1))
+        self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_sock.bind(("", 44444))
         self.server_sock.listen(1)
-        bluetooth.advertise_service(self.server_sock, "skullpos", service_id=self.uuid,
-                                    service_classes=[self.uuid, bluetooth.SERIAL_PORT_CLASS],
-                                    profiles=[bluetooth.SERIAL_PORT_PROFILE])
-        logging.info(f"LISTENING on RFCOMM :: {bluetooth.read_local_bdaddr()[0]}")
+        cmd = 'ifconfig eth0 | grep "inet " | cut -d " " -f10'
+        logging.info(f"LISTENING on TCP/IP, record the following address...")
+        ip = os.system(cmd)
         # wait for a connection!
         self.sock, self.client_info = self.server_sock.accept()
         logging.info("ACCEPTED :: %s" % self.client_info[0])
