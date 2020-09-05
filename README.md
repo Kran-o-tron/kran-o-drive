@@ -1,18 +1,18 @@
 # SkullPos - software for SkullBot
 
-Craniofacial positioning device w/ bluetooth between a RPI3 and UNIX machine. Interface via command line or graphical interface modes.
+Craniofacial positioning device w/ ethernet between a RPI3 and UNIX machine. Interface via command line or graphical interface modes.
 
 ![demo](./support/demo.gif)
 
 ## Quick Start
 
-Uses Python 3 and the Bluetooth Stack to communicate with a Raspberry Pi.
+Uses Python 3 and the TCP/IP stack to communicate with a Raspberry Pi.
 
 Run `./rasp-install.sh` to enable all requirements on the Raspberry Pi machine. Similarly `./mach-install.sh` for the client.
 
-Run `./rasp-start.sh` on the Raspberry Pi to begin the server process. Note the bluetooth address in the format ```00:00:00:00:00:00```.
+Run `./rasp-start.sh` on the Raspberry Pi to begin the server process. Note the ipv4 address in the format ```000.000.000.000```.
 
-Run `python3 mach.py <addr>` to communicate with the Raspberry Pi, where `<addr>` is the bluetooth address given above. This will connect to the Pi over bluetooth in *command line mode*, thus you will have to issue commands (specified in [Commands](##Commands)).
+Run `python3 mach.py <addr>` to communicate with the Raspberry Pi, where `<addr>` is the bluetooth address given above. This will connect to the Pi over ethernet in *command line mode*, thus you will have to issue commands (specified in [Commands](##Commands)).
 
 If using *command line mode* is undesirable, run `python3 mach.py -gui <addr>` in order to initiate *GUI* mode. You can begin a GUI instance on your machine by running `python3 gui.py <port>` where `port` is the number supplied by the `mach.py` instance. This GUI negates the use of the command line interface for easier use, and can be seen below:
 
