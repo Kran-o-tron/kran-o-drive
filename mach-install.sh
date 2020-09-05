@@ -1,3 +1,6 @@
 #!/bin/bash
-sudo python3 -m pip install \
-	pybluez
+#source venv/bin/activate
+pip install \
+  pyobjc \
+  pybluez \
+  fpdf

@@ -1,5 +1,5 @@
 cmds = ['pitch', 'yaw', 'height', 'roll', 'width', 'save', 'load', 'list', 'reset', 'close',
-        'playback']
+        'playback', 'playback_final']
 
 class CMD:
     """

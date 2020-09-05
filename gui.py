@@ -2,6 +2,7 @@ import argparse
 from socket import socket, AF_INET, SOCK_STREAM
 import tkinter as tk
 import tkinter.ttk as ttk
+import time
 
 
 class SkullGuiApp:
@@ -12,7 +13,15 @@ class SkullGuiApp:
             # connect to port of main thread!
             self.s = socket(AF_INET, SOCK_STREAM)
             print("Connecting...")
-            self.s.connect(('', mach_port))
+            # for i in range(0, 5):
+                # try:
+            time.sleep(2)
+            try:
+                self.s.connect(('', mach_port))
+            except Exception as e:
+                # print(e)
+                exit(1)
+
             print("Connected!")
 
         # build ui
@@ -21,6 +30,7 @@ class SkullGuiApp:
         # save window
         saveload = ttk.Frame(main)
         saveload_inner = ttk.Frame(saveload)
+        playback_inner = ttk.Frame(saveload)
         List_Button = ttk.Button(saveload)
         List_Button.config(text='LIST')
         List_Button.pack(side='top')
@@ -38,6 +48,7 @@ class SkullGuiApp:
         Load_Button = ttk.Button(saveload_inner)
         Load_Button.config(text='LOAD')
         Load_Button.pack(side='top')
+
         Save_Label = ttk.Label(saveload_inner)
         Save_Label.config(text='Save File:')
         Save_Label.pack(side='top')
@@ -52,8 +63,28 @@ class SkullGuiApp:
         saveload.config(height='200', width='200')
         saveload.pack(anchor='w', side='left')
 
+        Playback_Label = ttk.Label(saveload_inner)
+        Playback_Label.config(text='Playback File:')
+        Playback_Label.pack(side='top')
+        self.Playback_Entry = ttk.Entry(saveload_inner)
+        self.Playback_Entry.config(takefocus=True)
+        self.Playback_Entry.pack(side='top')
+        Realtime_Button = ttk.Button(saveload_inner)
+        Realtime_Button.config(text='REALTIME PLAYBACK')
+        Realtime_Button.pack(side='top')
+        staggered_Button = ttk.Button(saveload_inner)
+        staggered_Button.config(text='STAGGERED PLAYBACK')
+        staggered_Button.pack(side='top')
+
+        final_Button = ttk.Button(saveload_inner)
+        final_Button.config(text='FINAL PLAYBACK')
+        final_Button.pack(side='top')
+
         Load_Button.configure(command=self.load)
         Save_Button.configure(command=self.save)
+        Realtime_Button.configure(command=self.realtime)
+        staggered_Button.configure(command=self.staggered)
+        final_Button.configure(command=self.final)
         Reset_Button.configure(command=self.reset)
         List_Button.configure(command=self.list)
 
@@ -261,6 +292,39 @@ class SkullGuiApp:
         filename = self.Load_Entry.get()
         self.print(f"load {filename}")
         self.send(f"load::{filename}")
+
+    def realtime(self):
+        filename = self.Playback_Entry.get()
+        if filename == "":
+            self.print("NO FILE")
+            return
+        cmd1 = "playback::IRL"
+        cmd2 = f"playback::{filename}"
+        self.print(cmd1)
+        self.print(cmd2)
+        self.send(cmd1)
+        self.send(cmd2)
+
+    def staggered(self):
+        filename = self.Playback_Entry.get()
+        if filename == "":
+            self.print("NO FILE")
+            return
+        cmd1 = "playback::CONTROL"
+        cmd2 = f"playback::{filename}"
+        self.print(cmd1)
+        self.print(cmd2)
+        self.send(cmd1)
+        self.send(cmd2)
+
+    def final(self):
+        filename = self.Playback_Entry.get()
+        if filename == "":
+            self.print("NO FILE")
+            return
+        cmd2 = f"playback_final::{filename}"
+        self.print(cmd2)
+        self.send(cmd2)
 
     def reset(self):
         self.print("reset")

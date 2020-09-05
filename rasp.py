@@ -1,12 +1,13 @@
 import errno
 import pickle
-import sys
+import sys, os
 from socket import error as socket_error
 import bluetooth
 import logging
 import time
 from adafruit_motorkit import MotorKit
 from adafruit_motor import stepper
+import re, uuid
 
 from skullpkt import Skullpkt
 
@@ -30,9 +31,11 @@ class Rasp:
         self.sock = None
         self.client_info = None
         self.server_sock = None
+        self.demo = True
 
         self.setup()  # start variables and wait for connection
         if not demo:
+            self.demo = False
             self.bluetooth_setup()
             self.mainloop()  # enter connection loop
 
@@ -242,7 +245,7 @@ class Rasp:
     def setup(self):
         logging.basicConfig(level=logging.INFO,
                             format='[INFO :: %(asctime)s] :: %(message)s')
-        logging.info("Hello, skullpos!")
+        logging.info("Hello, SkullBot!")
         self.uuid = "CAFE"
         self.pos = dict()  # used to store info on servo positions
         self.pos['height'] = 0
@@ -260,17 +263,25 @@ class Rasp:
         self.limits['roll'] = (30, 30)  # todo check
 
         # initiate the steppers
-        self.width_motor = MotorKit(address=0x60)  # todo fix addresses
-        self.height_motors = MotorKit(address=0x61)
-        self.pitch_yaw = MotorKit(address=0x62, steppers_microsteps=4)
-        self.roll = MotorKit(address=0x63, steppers_microsteps=4)
+        try:
+            print("Init motors...")
+            self.width_motor = MotorKit(address=0x60)  # todo fix addresses
+            self.height_motors = MotorKit(address=0x61)
+            self.pitch_yaw = MotorKit(address=0x62, steppers_microsteps=4)
+            self.roll = MotorKit(address=0x63, steppers_microsteps=4)
+        except Exception as e:
+            print(e)
+            print("Couldn't find the stepper hats! Check the wiring, Exiting...")
+            if self.demo:
+                return
+            exit(1)
 
     def bluetooth_setup(self):
         """
         Setup the bluetooth connection (wait until we recv conn)
         """
         self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        self.server_sock.bind(("", bluetooth.PORT_ANY))
+        self.server_sock.bind(("", 1))
         self.server_sock.listen(1)
         bluetooth.advertise_service(self.server_sock, "skullpos", service_id=self.uuid,
                                     service_classes=[self.uuid, bluetooth.SERIAL_PORT_CLASS],

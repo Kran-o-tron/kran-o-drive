@@ -21,7 +21,7 @@ sudo apt-get install libbluetooth-dev \
   python-smbus \
   i2c-tools
 
-$PIP install --user gattlib \
+sudo python3 -m pip install --user gattlib \
   pybluez \
   adafruit-circuitpython-motorkit
 

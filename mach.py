@@ -7,7 +7,7 @@ import signal
 import sys
 import time
 
-from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+import socket
 from cmd import CMD
 from skullpkt import Skullpkt
 from typing import Optional
@@ -40,6 +40,7 @@ class Mach:
         self.gui_conn = None  # connection between gui and machine
         self.f_out: Optional[TextIOWrapper] = None  # file to be written to in playback mode
         self.realtime_playback = False  # either repeat IRL timings, or wait until input confirm
+        self.demo = False
 
         if gui:
             self.setup_gui()
@@ -50,16 +51,24 @@ class Mach:
         self.load_from_disk()
 
         if bluetooth_addr != '0':  # demo purposes
-            self.connect()
+            try:
+                self.connect()
+            except Exception as e:
+                print(e)
+                print("couldn't connect! check if you are paired over bluetooth")
+                print("or if it is the correct bluetooth address!")
+                # print(e)
+                # print("ERROR! Couldn't find SkullBot at that address!")
+                exit(1)
         else:
             self.demo = True
 
         self.mainloop(gui)
 
     def setup_gui(self):
-        self.gui_socket = socket(AF_INET, SOCK_STREAM)
-        self.gui_socket.bind(('', 0))
-        self.gui_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.gui_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.gui_socket.bind(('', 55555))
 
         # wait for connection
         print(
@@ -196,6 +205,9 @@ class Mach:
         file_format = f"playbacks/SkullBot_{file_format}.csv"
         print(f"\n:: Saving playback info to {file_format}")
         self.f_out = open(file_format, 'w')
+
+    # def playback_stop(self):
+
 
     def save_cmd_for_playback(self, cmd_list: list):
         for cmd in cmd_list:
@@ -335,14 +347,15 @@ class Mach:
         Note: Use of RFCOMM ensures 'reliable' (best effort) delivery!
         """
         # instantiate and connect to bluetooth socket
-        service_matches = bluetooth.find_service(address=self.bluetooth_addr)
-        first_match = service_matches[0]
-        port = first_match["port"]
-        name = first_match["name"]
-        host = first_match["host"].decode()
+        # service_matches = bluetooth.find_service(address=self.bluetooth_addr)
+        # first_match = service_matches[0]
+        # port = first_match["port"]
+        # name = first_match["name"]
+        # host = first_match["host"].decode()
 
         self.bluetooth_socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        self.bluetooth_socket.connect((host, port))
+        # self.bluetooth_socket = socket.socket(socket.AF_BLUETOOTH,socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+        self.bluetooth_socket.connect((self.bluetooth_addr, 1))  # always connect on port 1
 
     def welcome(self, gui):
         """Welcome msg to terminal
