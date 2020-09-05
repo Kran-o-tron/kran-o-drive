@@ -12,7 +12,7 @@ Run `./rasp-install.sh` to enable all requirements on the Raspberry Pi machine. 
 
 Run `./rasp-start.sh` on the Raspberry Pi to begin the server process. Note the ipv4 address in the format ```000.000.000.000```.
 
-Run `python3 mach.py <addr>` to communicate with the Raspberry Pi, where `<addr>` is the bluetooth address given above. This will connect to the Pi over ethernet in *command line mode*, thus you will have to issue commands (specified in [Commands](##Commands)).
+Run `python3 mach.py <addr>` to communicate with the Raspberry Pi, where `<addr>` is the ipv4 address given above. This will connect to the Pi over ethernet in *command line mode*, thus you will have to issue commands (specified in [Commands](##Commands)).
 
 If using *command line mode* is undesirable, run `python3 mach.py -gui <addr>` in order to initiate *GUI* mode. You can begin a GUI instance on your machine by running `python3 gui.py <port>` where `port` is the number supplied by the `mach.py` instance. This GUI negates the use of the command line interface for easier use, and can be seen below:
 
@@ -35,6 +35,9 @@ Use `pitch`, `yaw`, `roll`, `height` and `width` like so `<cmd>::<amount>` where
 `close` to politely close the connection. `^C` also works too.
 
 ### Playback 
+`playback::START` to begin recording of commands
+
+`playback::END` to end recording of commands, outputs history to a PDF file.
 
 `playback::<file_name>` to begin playback of a file with a particular name. Must be located in the `playbacks/` folder.
 
@@ -46,7 +49,7 @@ Use `pitch`, `yaw`, `roll`, `height` and `width` like so `<cmd>::<amount>` where
 
 ## Playback
 
-By default, all commands sent across to SkullBot are recorded in a file with the date and time that SkullBot was accessed for that session. This is found in the `playback/` directory.
+By default, on starting the software, all commands sent across to SkullBot are recorded in a file with the date and time that SkullBot was accessed for that session. This is found in the `playback/` directory.
 
 To turn this off, use the flag `-no_playback` when starting `mach.py`.
 
