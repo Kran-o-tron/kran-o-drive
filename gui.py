@@ -366,5 +366,8 @@ if __name__ == '__main__':
     root = tk.Tk()
     root.title("SkullPos")
     root.resizable(False, False)
+
+    root.option_add("*Font", "TkDefaultFont")
+
     app = SkullGuiApp(root, args.port, True)
     app.run()

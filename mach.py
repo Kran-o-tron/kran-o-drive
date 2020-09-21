@@ -70,9 +70,8 @@ class Mach:
         self.gui_socket.bind(('', 55555))
 
         # wait for connection
-        print(
-            "Started in GUI mode, execute the following command to interface "
-            "with skullpos")
+        print("Started in GUI mode, execute the following command to interface "
+              "with skullpos")
         print(f"\t > python3 gui.py {self.gui_socket.getsockname()[1]}")
         self.gui_socket.listen()
         print("waiting...")
@@ -156,7 +155,7 @@ class Mach:
                                 pdf.set_font("Helvetica", size=12)
                                 lines = file.readlines()
                                 for i in range(1, len(lines) + 1):
-                                    txt = lines[i-1]
+                                    txt = lines[i - 1]
                                     pdf.cell(0, 5, txt=txt, ln=i)
 
                                 pdf.output(self.last_playback[:-4] + ".pdf")
@@ -181,8 +180,7 @@ class Mach:
                     print(CMD.permitted_cmds())
 
                 # -------- move --------
-                elif command.startswith(('pitch', 'yaw', 'height', 'roll',
-                                         'width')):
+                elif command.startswith(('pitch', 'yaw', 'height', 'roll', 'width')):
                     args = command.split("::")
                     self.do_move(args, command, pkt)
 
@@ -214,7 +212,11 @@ class Mach:
     def send_to_pi(self, pkt):
         data_string = pickle.dumps(pkt)
         if not self.demo:
-            self.ethernet_socket.send(data_string)  # send along the socket to the rpi
+            try:
+                self.ethernet_socket.send(data_string)  # send along the socket to the rpi
+            except BrokenPipeError as e:
+                print("Lost connection to SkullBot... exiting...")
+                exit(1)
         # ~~ playback save ~~
         if self.playback_enabled:
             self.save_cmd_for_playback(pkt.get_pkt_cmds())
@@ -234,7 +236,7 @@ class Mach:
 
     def save_cmd_for_playback(self, cmd_list: list):
         for cmd in cmd_list:
-            print(cmd)
+            # print(cmd)
             if cmd.action.startswith('save'):
                 continue
             else:
@@ -265,8 +267,8 @@ class Mach:
 
             if self.realtime_playback:
                 time_section = command[0].split("(")[1].split(")")[0]
-                current_seconds = sum([a * b for a, b in zip(ftr, map(int, time_section.split(
-                    ':')))])
+                current_seconds = sum(
+                    [a * b for a, b in zip(ftr, map(int, time_section.split(':')))])
                 time_to_wait = current_seconds - prev_seconds
                 print(f"Waiting {time_to_wait} seconds...")
                 time.sleep(time_to_wait)
@@ -340,9 +342,8 @@ class Mach:
         self.profile_name = args[1]  # save profile name
         if self.profile_name in self.profiles.keys():
             print("=========================")
-            string = input(
-                f'Profile present with values {self.profiles[args[1]]}\n'
-                f'Do you want to overwrite? [Y/n] ')
+            string = input(f'Profile present with values {self.profiles[args[1]]}\n'
+                           f'Do you want to overwrite? [Y/n] ')
             print("=========================")
             if string == "Y":
                 # -------- OVERWRITE --------
@@ -394,6 +395,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     args = parser.parse_args()
     Mach(args.ipv4_addr, args.gui, args.no_playback)
-
 
 # todo remove self.demo lines

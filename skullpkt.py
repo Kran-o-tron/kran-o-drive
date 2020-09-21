@@ -9,7 +9,7 @@ class Skullpkt:
         self.cmds = []
 
     def __repr__(self):
-        return f'[{self.task_id}] @ {self.time_of_cmd} -> {self.cmds}' 
+        return f'{self.cmds}'
 
     def add_cmd(self, cmd: CMD):
         self.cmds.append(cmd)
