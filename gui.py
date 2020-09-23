@@ -1,13 +1,33 @@
 import argparse
-from socket import socket, AF_INET, SOCK_STREAM
+from decimal import Decimal
+from socket import socket, AF_INET, SOCK_STREAM, SOCK_DGRAM
 import tkinter as tk
 import tkinter.ttk as ttk
 import time
+import threading
+
+
+def updater_thread(gui_sock, labels):
+    while True:
+        data = gui_sock.recv(2048)
+        if data is None:
+            break
+        split = data.decode().split("::")
+        label = labels[split[0]]
+        label.config(text=split[1])
 
 
 class SkullGuiApp:
 
-    def __init__(self, master=None, mach_port=0, iso=False):
+    def __init__(self, master=None, mach_port=0, rasp_ip='', iso=False):
+        self.pos = dict()
+        self.pos['height'] = Decimal('0.0')
+        self.pos['pitch'] = Decimal('0.0')
+        self.pos['yaw'] = Decimal('0.0')
+        self.pos['roll'] = Decimal('0.0')
+        self.pos['width'] = Decimal('0.0')
+
+        self.labels = dict()
 
         if mach_port != 0:
             self.s = socket(AF_INET, SOCK_STREAM)
@@ -20,6 +40,21 @@ class SkullGuiApp:
                 exit(1)
 
             print("Connected!")
+
+            # connect to raspberry pi
+            self.gui_sock = socket(AF_INET, SOCK_STREAM)
+            try:
+                print(rasp_ip)
+                self.gui_sock.connect((rasp_ip, 23456))
+                # print("GUI connected to pi")
+                g_thread = threading.Thread(target=updater_thread, args=(self.gui_sock,
+                                                                         self.labels,))
+                g_thread.setDaemon(True)
+                g_thread.start()
+            except Exception as e:
+                print(e)
+                print("Couldn't detect raspberry pi on the network...")
+                exit(1)
 
         # build ui
         main = ttk.Frame(master)
@@ -252,6 +287,13 @@ class SkullGuiApp:
         # Main widget
         self.mainwindow = main
 
+        # populate dict for thread usage
+        self.labels['height'] = Height_Value
+        self.labels['width'] = Width_Value
+        self.labels['pitch'] = Pitch_Value
+        self.labels['roll'] = Roll_Value
+        self.labels['yaw'] = Yaw_Value
+
         if not iso:
             self.mainwindow.mainloop()
 
@@ -360,8 +402,9 @@ class SkullGuiApp:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('port', type=int, help="port for mach.py connection")
+    parser.add_argument('rasp_ip', type=str, help="ip of raspberry pi")
     args = parser.parse_args()
-    print(args.port)
+    # print(args.port)
 
     root = tk.Tk()
     root.title("SkullPos")
@@ -369,5 +412,5 @@ if __name__ == '__main__':
 
     root.option_add("*Font", "TkDefaultFont")
 
-    app = SkullGuiApp(root, args.port, True)
+    app = SkullGuiApp(root, args.port, args.rasp_ip, True)
     app.run()
