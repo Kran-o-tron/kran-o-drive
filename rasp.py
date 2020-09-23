@@ -213,6 +213,9 @@ class Rasp:
             self.pos[axis] += (distance * Decimal('0.1'))  # todo check this amount
 
         logging.info(f"MOVED TO: {self.pos[axis]}")
+        if self.gui_status:
+            # print("sending...")
+            self.gui_conn.send(f"{axis}::{str(self.pos[axis])}".encode())
 
     def setup(self):
         logging.basicConfig(level=logging.INFO, format='[%(asctime)s] :: %(message)s')
@@ -253,12 +256,30 @@ class Rasp:
         self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_sock.bind(("", 44444))
         self.server_sock.listen(1)
+
+        self.gui_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.gui_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.gui_sock.bind(("", 23456))
+
+        # print("boo")
         cmd = 'ifconfig eth0 | grep "inet " | cut -d " " -f10'
         logging.info(f"LISTENING on TCP/IP, record the following address...")
         ip = os.system(cmd)
         # wait for a connection!
         self.sock, self.client_info = self.server_sock.accept()
         logging.info("ACCEPTED :: %s" % self.client_info[0])
+
+        # print("hi")
+        try:
+            # print("waiting for GUI")
+            self.gui_sock.settimeout(5)
+            self.gui_sock.listen(1)
+            self.gui_conn, self.gui_info = self.gui_sock.accept()
+            logging.info("CONNECTED TO GUI")
+            self.gui_status = True
+        except socket.timeout:
+            print("No GUI instance found...")
+            self.gui_status = False
 
 
 if __name__ == "__main__":
