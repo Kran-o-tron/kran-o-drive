@@ -8,6 +8,18 @@ from decimal import Decimal
 from adafruit_motorkit import MotorKit
 from adafruit_motor import stepper
 from skullpkt import Skullpkt
+import tty
+import termios
+
+def unix_getchar():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
 
 
 class Rasp:
@@ -17,15 +29,18 @@ class Rasp:
     GPIO.
     """
 
+    ANGLE_STEP = Decimal('0.9')
+    TRANSLATION_STEP = Decimal('0.01')
+
     def __init__(self, demo: bool):
         self.uuid = None
         self.pos = None
         self.limits = None
         self.width: MotorKit = None
-        self.pitch_yaw: MotorKit = None
-        self.roll: MotorKit = None
-        self.width_motor: MotorKit = None
         self.height_motors: MotorKit = None
+        self.roll: MotorKit = None
+        self.yaw_pitch_motors: MotorKit = None
+        self.roll_pan_motors: MotorKit = None
         self.sock = None
         self.client_info = None
         self.server_sock = None
@@ -33,11 +48,61 @@ class Rasp:
 
         self.setup()  # start variables and wait for connection
         self.demo = True
+        self.standardise()
 
         if not demo:
             self.demo = False
             self.network_setup()
             self.mainloop()  # enter connection loop
+
+    def standardise(self):
+        input("HIT ENTER TO BEGIN STANDARDISATION")
+        GO = True
+        while GO:
+            for axis in ['height', 'width', 'pitch', 'yaw', 'roll']:
+                print("MOVING", axis)
+                while True:
+                    char = unix_getchar()
+                    if char == 'w':
+                        if axis in ['height', 'width']:
+                            # reversed directions
+                            direction = stepper.BACKWARD
+                        else:
+                            direction = stepper.FORWARD
+                    elif char == 's':
+                        if axis in ['height', 'width']:
+                            # reversed directions
+                            direction = stepper.FORWARD
+                        else:
+                            direction = stepper.BACKWARD
+                    elif char == '/':
+                        print('next axis...')
+                        break
+                    elif char == '=':
+                        print("DONE... EXITING")
+                        GO = False
+                        return
+                    else:
+                        print("BAD KEY, CONTINUING...")
+                        continue
+
+                    if axis == 'pitch':
+                        self.yaw_pitch_motors.stepper2.onestep(direction=direction,
+                                                               style=stepper.INTERLEAVE)
+                    elif axis == 'yaw':
+                        self.yaw_pitch_motors.stepper1.onestep(direction=direction,
+                                                               style=stepper.INTERLEAVE)
+                    elif axis == 'roll':
+                        self.roll_pan_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    elif axis == 'width':
+                        for _ in range(10):
+                            self.roll_pan_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    elif axis == 'height':
+                        for _ in range(10):
+                            self.height_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
+                            self.height_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+
+                    time.sleep(0.01)
 
     def mainloop(self):
         """Main execution loop for Mach. Waits for commands and executes their
@@ -157,17 +222,17 @@ class Rasp:
                 buffer_amount = self.limits[axis][1]
 
         if axis in ['pitch', 'roll', 'yaw']:
-            logging.info(f"MOVING {axis} -> degrees[{0.45 * distance}]:steps[{distance}]")
+            logging.info(f"MOVING {axis} -> degrees[{Rasp.ANGLE_STEP * distance}]:steps[{distance}]")
             logging.info(f"buffer to move -> {buffer_amount}")
 
-            if distance * Decimal('0.45') > buffer_amount:
+            if distance * Rasp.ANGLE_STEP > buffer_amount:
                 logging.info(f"DISTANCE TOO GREAT -> TRY AGAIN")
                 return
         else:
-            logging.info(f"MOVING {axis} -> cm[{0.1 * distance}]:steps[{distance}]")
+            logging.info(f"MOVING {axis} -> cm[{Rasp.TRANSLATION_STEP * distance}]:steps[{distance}]")
             logging.info(f"buffer to move -> {buffer_amount}")
 
-            if distance * Decimal('0.1') > buffer_amount:
+            if distance * Rasp.TRANSLATION_STEP > buffer_amount:
                 logging.info(f"DISTANCE TOO GREAT -> TRY AGAIN")
                 return
 
@@ -182,35 +247,53 @@ class Rasp:
         """
         direction: int
         if distance < 0:
-            direction = stepper.BACKWARD
+            if axis in ['height', 'width']:
+                # reversed directions
+                direction = stepper.FORWARD
+            else:
+                direction = stepper.BACKWARD
         elif distance > 0:
-            direction = stepper.FORWARD
+            if axis in ['height', 'width']:
+                # reversed directions
+                direction = stepper.BACKWARD
+            else:
+                direction = stepper.FORWARD
         else:
             return
 
+        # self.height_motors.stepper1.release()
+        # self.height_motors.stepper2.release()
+
         if not self.broken_steppers:
-            for _ in range(0, distance):
+            # print(axis, distance, direction)
+            for _ in range(0, abs(distance)):
                 if axis == 'pitch':
-                    self.pitch_yaw.stepper1.onestep(direction=direction, style=stepper.MICROSTEP)
+                    self.yaw_pitch_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
                 elif axis == 'yaw':
-                    self.pitch_yaw.stepper2.onestep(direction=direction, style=stepper.MICROSTEP)
+                    self.yaw_pitch_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
                 elif axis == 'roll':
-                    self.roll.stepper1.onestep(direction=direction, style=stepper.MICROSTEP)
+                    self.roll_pan_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+                elif axis == 'width':
+                    self.roll_pan_motors.stepper2.onestep(direction=direction,
+                                                          style=stepper.INTERLEAVE)
                 elif axis == 'height':
                     # interleave movement - strength!
-                    self.height_motors.stepper1.onestep(direction=direction,
-                                                        style=stepper.INTERLEAVE)
-                    self.height_motors.stepper2.onestep(direction=direction,
-                                                        style=stepper.INTERLEAVE)
+                    # reverse the movement (wiring is backwards sadly)
+                    # print(axis, distance, direction)
+                    self.height_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    self.height_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
 
                 time.sleep(0.01)
         else:
             print("Steppers cannot be accessed! Restart & check the wiring!")
 
+        # self.height_motors.stepper1.release()
+        # self.height_motors.stepper2.release()
+
         if axis in ['pitch', 'roll', 'yaw']:
-            self.pos[axis] += (distance * Decimal('0.45'))
+            self.pos[axis] += (distance * Rasp.ANGLE_STEP)
         else:
-            self.pos[axis] += (distance * Decimal('0.1'))  # todo check this amount
+            self.pos[axis] += (distance * Rasp.TRANSLATION_STEP)  # todo check this amount
 
         logging.info(f"MOVED TO: {self.pos[axis]}")
         if self.gui_status:
@@ -239,10 +322,17 @@ class Rasp:
         # initiate the steppers
         try:
             print("Init motors...")
-            self.width_motor = MotorKit(address=0x60)  # todo fix addresses
-            self.height_motors = MotorKit(address=0x61)
-            self.pitch_yaw = MotorKit(address=0x62, steppers_microsteps=4)
-            self.roll = MotorKit(address=0x63, steppers_microsteps=4)
+            self.yaw_pitch_motors = MotorKit(address=0x60, steppers_microsteps=4)
+            self.roll_pan_motors = MotorKit(address=0x61, steppers_microsteps=4)
+            self.height_motors = MotorKit(address=0x62)
+
+            self.yaw_pitch_motors.stepper1.release()
+            self.yaw_pitch_motors.stepper2.release()
+            self.roll_pan_motors.stepper1.release()
+            self.roll_pan_motors.stepper2.release()
+            self.height_motors.stepper1.release()
+            self.height_motors.stepper2.release()
+
         except Exception as e:
             print(e)
             print("Couldn't find the stepper hats! Check the wiring!")

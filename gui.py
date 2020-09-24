@@ -6,6 +6,9 @@ import tkinter.ttk as ttk
 import time
 import threading
 
+ANGLE_STEP = Decimal('0.9')
+TRANSLATION_STEP = Decimal('0.01')
+
 
 def updater_thread(gui_sock, labels):
     while True:
@@ -125,7 +128,7 @@ class SkullGuiApp:
         step_label.pack(side='top')
         self.step_entry = ttk.Entry(main)
         self.step_entry.config(justify='center')
-        _text_ = '''0'''
+        _text_ = '''1'''
         self.step_entry.delete('0', 'end')
         self.step_entry.insert('0', _text_)
         self.step_entry.pack(side='top')
@@ -304,8 +307,8 @@ class SkullGuiApp:
             print("GUI: INVALID STEP SIZE - NO COMMAND SENT")
             return  # end step attempt
 
-        self.degrees_label.config(text=f"Degrees: {step_size * 0.45}")
-        self.distance_label.config(text=f"Translation (mm): {step_size * 0.1}")
+        self.degrees_label.config(text=f"Degrees: {step_size * ANGLE_STEP}")
+        self.distance_label.config(text=f"Translation (mm): {step_size * TRANSLATION_STEP}")
 
     def print(self, string: str):
         self.Commands_Window.config(state=tk.NORMAL)
