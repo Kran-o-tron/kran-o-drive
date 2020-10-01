@@ -1,4 +1,4 @@
-# SkullPos - Software for SkullBot
+# SkullPos - Software for Kran-o-scan
 
 Craniofacial Superimposition device over Ethernet between a RPI3 and *nix machine. Interface via command line or graphical interface modes.
 
@@ -45,9 +45,9 @@ Use `pitch`, `yaw`, `roll`, `height` and `width` like so `<cmd>::<amount>` where
 
 `playback::CONTROL` to set playback mode to perform the next command with input from the user (i.e. hitting any key).
 
-`playback_final::<file_name>` jump straight to the final position of a SkullBot session file. Must be located in the `playbacks/` folder.
+`playback_final::<file_name>` jump straight to the final position of a Kran-o-scan session file. Must be located in the `playbacks/` folder.
 
-By default, on starting the software, all commands sent across to SkullBot are recorded in a file with the date and time that SkullBot was accessed for that session. This is found in the `playback/` directory.
+By default, on starting the software, all commands sent across to Kran-o-scan are recorded in a file with the date and time that Kran-o-scan was accessed for that session. This is found in the `playback/` directory.
 
 To turn this off, use the flag `-no_playback` when starting `./mach.sh`.
 
