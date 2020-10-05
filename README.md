@@ -1,4 +1,4 @@
-# SkullPos - Software for Kran-o-scan
+# Kran-o-drive :: Scripts for Kran-o-scan
 
 Craniofacial Superimposition device over Ethernet between a RPI3 and *nix machine. Interface via command line or graphical interface modes.
 
@@ -47,7 +47,7 @@ Use `pitch`, `yaw`, `roll`, `height` and `width` like so `<cmd>::<amount>` where
 
 `playback_final::<file_name>` jump straight to the final position of a Kran-o-scan session file. Must be located in the `playbacks/` folder.
 
-By default, on starting the software, all commands sent across to Kran-o-scan are recorded in a file with the date and time that Kran-o-scan was accessed for that session. This is found in the `playback/` directory.
+By default, on starting the script, all commands sent across to Kran-o-scan are recorded in a file with the date and time that Kran-o-scan was accessed for that session. This is found in the `playback/` directory.
 
 To turn this off, use the flag `-no_playback` when starting `./mach.sh`.
 
