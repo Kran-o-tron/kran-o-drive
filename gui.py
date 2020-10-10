@@ -7,7 +7,7 @@ import time
 import threading
 
 ANGLE_STEP = Decimal('0.9')
-TRANSLATION_STEP = Decimal('0.01')
+TRANSLATION_STEP = Decimal('0.02')
 
 
 def updater_thread(gui_sock, labels):

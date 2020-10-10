@@ -30,7 +30,7 @@ class Rasp:
     """
 
     ANGLE_STEP = Decimal('0.9')
-    TRANSLATION_STEP = Decimal('0.01')
+    TRANSLATION_STEP = Decimal('0.02')
 
     def __init__(self, demo: bool):
         self.uuid = None
@@ -229,7 +229,7 @@ class Rasp:
                 logging.info(f"DISTANCE TOO GREAT -> TRY AGAIN")
                 return
         else:
-            logging.info(f"MOVING {axis} -> cm[{Rasp.TRANSLATION_STEP * distance}]:steps[{distance}]")
+            logging.info(f"MOVING {axis} -> m[{distance/Rasp.TRANSLATION_STEP}]:steps[{distance}]")
             logging.info(f"buffer to move -> {buffer_amount}")
 
             if distance * Rasp.TRANSLATION_STEP > buffer_amount:
@@ -268,22 +268,26 @@ class Rasp:
             # print(axis, distance, direction)
             for _ in range(0, abs(distance)):
                 if axis == 'pitch':
-                    self.yaw_pitch_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    self.yaw_pitch_motors.stepper2.onestep(direction=direction, style=stepper.MICROSTEP)
+                    time.sleep(0.01)
                 elif axis == 'yaw':
-                    self.yaw_pitch_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    self.yaw_pitch_motors.stepper1.onestep(direction=direction,
+                                                           style=stepper.MICROSTEP)
+                    time.sleep(0.01)
                 elif axis == 'roll':
-                    self.roll_pan_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    self.roll_pan_motors.stepper1.onestep(direction=direction, style=stepper.MICROSTEP)
+                    time.sleep(0.01)
                 elif axis == 'width':
                     self.roll_pan_motors.stepper2.onestep(direction=direction,
-                                                          style=stepper.INTERLEAVE)
+                                                          style=stepper.MICROSTEP)
                 elif axis == 'height':
                     # interleave movement - strength!
                     # reverse the movement (wiring is backwards sadly)
                     # print(axis, distance, direction)
-                    self.height_motors.stepper2.onestep(direction=direction, style=stepper.INTERLEAVE)
-                    self.height_motors.stepper1.onestep(direction=direction, style=stepper.INTERLEAVE)
+                    self.height_motors.stepper2.onestep(direction=direction, style=stepper.SINGLE)
+                    self.height_motors.stepper1.onestep(direction=direction, style=stepper.SINGLE)
 
-                time.sleep(0.01)
+                # time.sleep(0.01)
         else:
             print("Steppers cannot be accessed! Restart & check the wiring!")
 
@@ -302,7 +306,7 @@ class Rasp:
 
     def setup(self):
         logging.basicConfig(level=logging.INFO, format='[%(asctime)s] :: %(message)s')
-        logging.info("Hello, SkullBot!")
+        logging.info("Hello, Kran-o-tron!")
         self.uuid = "CAFE"
         self.pos = dict()  # used to store info on servo positions
         self.pos['height'] = Decimal('0.0')
@@ -313,8 +317,8 @@ class Rasp:
 
         # define limits for the stepper motors
         self.limits = dict()
-        self.limits['height'] = (Decimal('0'), Decimal('200'))  # todo check
-        self.limits['width'] = (Decimal('0'), Decimal('200'))  # todo check
+        self.limits['height'] = (Decimal('10000'), Decimal('10000'))  # todo check
+        self.limits['width'] = (Decimal('10000'), Decimal('10000'))  # todo check
         self.limits['pitch'] = (Decimal('30'), Decimal('30'))  # todo check
         self.limits['yaw'] = (Decimal('30'), Decimal('30'))  # todo check
         self.limits['roll'] = (Decimal('30'), Decimal('30'))  # todo check
@@ -351,7 +355,6 @@ class Rasp:
         self.gui_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.gui_sock.bind(("", 23456))
 
-        # print("boo")
         cmd = 'ifconfig eth0 | grep "inet " | cut -d " " -f10'
         logging.info(f"LISTENING on TCP/IP, record the following address...")
         ip = os.system(cmd)
